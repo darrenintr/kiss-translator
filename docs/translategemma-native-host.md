@@ -1,14 +1,23 @@
 # TranslateGemma automatic launcher on Linux
 
-This launcher lets the browser extension start the local llama.cpp TranslateGemma server only when it is needed.
+This launcher lets the browser extension start the local llama.cpp TranslateGemma server and Qwen3-ASR live-caption server only when they are needed.
 
 ## How it works
 
+For TranslateGemma:
+
 1. KISS Translator is about to request `http://127.0.0.1:8081/completion`.
 2. The background service worker checks `/health`.
-3. If llama.cpp is not running, the extension sends a Chrome Native Messaging request.
-4. The native host runs `systemctl --user start kiss-translategemma.service`.
-5. It waits until llama.cpp reports healthy, then the original translation request continues.
+3. If llama.cpp is not running, the extension asks the local launcher or Native Messaging host to start `kiss-translategemma.service`.
+4. It waits until llama.cpp reports healthy, then the original translation request continues.
+
+For local AI live captions:
+
+1. Press **Alt+L** on a tab containing video or audio.
+2. The extension starts `kiss-qwen3-asr.service` on `127.0.0.1:8082` if needed.
+3. Chromium `tabCapture` sends the tab audio to an offscreen document.
+4. Audio is converted to 16 kHz mono WAV chunks and sent to `/v1/audio/transcriptions`.
+5. Qwen3-ASR returns text which is rendered as a live subtitle overlay.
 
 The systemd service is intentionally **not enabled**, so it does not start merely because you logged in.
 
@@ -21,7 +30,9 @@ From the repository root:
 ```bash
 DEVICE=Vulkan0 PARALLEL=4 ./native/install-linux.sh \
   YOUR_EXTENSION_ID \
-  /home/darren/llama/translategemma-4b-it.Q4_K_M.gguf
+  /home/darren/llama/translategemma-4b-it.Q4_K_M.gguf \
+  /home/darren/llama/Qwen3-ASR-0.6B-Q8_0.gguf \
+  /home/darren/llama/mmproj-Qwen3-ASR-0.6B-Q8_0.gguf
 ```
 
 Then rebuild the extension:
@@ -93,3 +104,42 @@ Verify that the heavy backend is still idle before translation:
 ```bash
 systemctl --user status kiss-translategemma.service
 ```
+
+
+## Qwen3-ASR live captions
+
+The ASR backend is fixed to port **8082** by default and is installed as:
+
+```text
+kiss-qwen3-asr.service
+```
+
+It is intentionally disabled at login and starts only when live captions are requested.
+
+Manual equivalent command:
+
+```bash
+llama-server \
+  -m /home/darren/llama/Qwen3-ASR-0.6B-Q8_0.gguf \
+  --mmproj /home/darren/llama/mmproj-Qwen3-ASR-0.6B-Q8_0.gguf \
+  --host 127.0.0.1 \
+  --port 8082 \
+  --device Vulkan0 \
+  -ngl all \
+  -c 4096 \
+  --parallel 1
+```
+
+Health check:
+
+```bash
+curl -sS http://127.0.0.1:8082/health
+```
+
+Live logs:
+
+```bash
+journalctl --user -u kiss-qwen3-asr.service -f
+```
+
+The Chrome/Chromium extension uses **Alt+L** to toggle local AI captions. Recognition language, audio chunk length, and overlap can be changed under the subtitle settings.
