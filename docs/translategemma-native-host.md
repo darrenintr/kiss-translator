@@ -61,3 +61,35 @@ Live logs:
 ```bash
 journalctl --user -u kiss-translategemma.service -f
 ```
+
+
+## Sandboxed browsers (Brave/Chromium Snap)
+
+Strictly confined browser packages cannot reliably launch arbitrary host executables through Native Messaging. The Linux installer therefore also installs a lightweight user service:
+
+```text
+kiss-translategemma-launcher.service
+```
+
+It listens only on:
+
+```text
+http://127.0.0.1:8765
+```
+
+The extension sends a privileged local `POST /start` request with a custom header. The launcher then starts `kiss-translategemma.service`, waits for llama.cpp on port 8081 to become healthy, and returns control to the original translation request.
+
+The launcher itself does not load the model or use GPU/VRAM. The heavy llama.cpp service remains disabled at login and starts only when TranslateGemma is actually requested.
+
+Verify the lightweight launcher:
+
+```bash
+systemctl --user status kiss-translategemma-launcher.service
+curl -sS http://127.0.0.1:8765/health
+```
+
+Verify that the heavy backend is still idle before translation:
+
+```bash
+systemctl --user status kiss-translategemma.service
+```
