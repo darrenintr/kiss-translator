@@ -38,6 +38,7 @@ import {
   SettingsRow,
   SettingsSection,
   SettingsSegmented,
+  SettingsRange,
   SettingsSelect,
   SettingsSwitch,
 } from "./SettingsCard";
@@ -478,6 +479,9 @@ export default function SubtitleSetting() {
     showList = OPT_ENHANCE_MOBILE_OFF,
     skipAd = false,
     aiContextSlug = "-",
+    localAiChunkMs = 2200,
+    localAiOverlapMs = 300,
+    localAiLanguage = "auto",
     segPromptMode = PROMPT_MODE_FOLLOW_API,
     segPromptSlug,
     windowStyle,
@@ -808,6 +812,80 @@ export default function SubtitleSetting() {
                     label: i18n("translation_first"),
                   },
                 ]}
+              />
+            </SettingsRow>
+          </SettingsCard>
+        </SettingsSection>
+
+        <SettingsSection
+          title={i18n("settings_local_ai_captions", "Local AI live captions")}
+        >
+          <SettingsCard>
+            <SettingsRow
+              label={i18n("settings_local_ai_shortcut", "Live caption shortcut")}
+              description={i18n(
+                "settings_local_ai_shortcut_description",
+                "Press Alt+L on a video tab to start or stop local Qwen3-ASR captions. The local ASR server uses port 8082."
+              )}
+            >
+              <Typography variant="body2" color="text.secondary">
+                Alt+L
+              </Typography>
+            </SettingsRow>
+            <SettingsRow
+              label={i18n("settings_local_ai_language", "Recognition language")}
+              description={i18n(
+                "settings_local_ai_language_description",
+                "Auto detection is recommended for mixed Cantonese, Mandarin, Japanese, and English videos."
+              )}
+            >
+              <SettingsSelect
+                value={localAiLanguage}
+                label={i18n("settings_local_ai_language", "Recognition language")}
+                onChange={(value) => updateSubtitle({ localAiLanguage: value })}
+                options={[
+                  { value: "auto", label: i18n("auto", "Auto") },
+                  { value: "yue", label: "粵語 / Cantonese" },
+                  { value: "zh", label: "普通話 / Mandarin" },
+                  { value: "ja", label: "日本語 / Japanese" },
+                  { value: "en", label: "English" },
+                ]}
+              />
+            </SettingsRow>
+            <SettingsRow
+              stacked
+              label={i18n("settings_local_ai_chunk", "Audio chunk length")}
+              description={i18n(
+                "settings_local_ai_chunk_description",
+                "Shorter chunks reduce subtitle delay; longer chunks give the ASR model more context."
+              )}
+            >
+              <SettingsRange
+                value={localAiChunkMs}
+                min={1000}
+                max={5000}
+                step={100}
+                unit=" ms"
+                label={i18n("settings_local_ai_chunk", "Audio chunk length")}
+                onChange={(value) => updateSubtitle({ localAiChunkMs: value })}
+              />
+            </SettingsRow>
+            <SettingsRow
+              stacked
+              label={i18n("settings_local_ai_overlap", "Chunk overlap")}
+              description={i18n(
+                "settings_local_ai_overlap_description",
+                "Keeps a small amount of previous audio to reduce words being cut at chunk boundaries."
+              )}
+            >
+              <SettingsRange
+                value={localAiOverlapMs}
+                min={0}
+                max={800}
+                step={50}
+                unit=" ms"
+                label={i18n("settings_local_ai_overlap", "Chunk overlap")}
+                onChange={(value) => updateSubtitle({ localAiOverlapMs: value })}
               />
             </SettingsRow>
           </SettingsCard>
