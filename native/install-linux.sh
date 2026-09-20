@@ -3,6 +3,7 @@ set -euo pipefail
 
 HOST_NAME="io.github.darrenintr.kiss_translator.translategemma"
 SERVICE_NAME="kiss-translategemma.service"
+LAUNCHER_SERVICE_NAME="kiss-translategemma-launcher.service"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
@@ -59,11 +60,14 @@ fi
 
 HOST_DIR="$HOME/.local/lib/kiss-translator"
 HOST_PATH="$HOST_DIR/translategemma-host.py"
+LAUNCHER_PATH="$HOST_DIR/translategemma-launcher.py"
 SYSTEMD_DIR="$HOME/.config/systemd/user"
 SERVICE_PATH="$SYSTEMD_DIR/$SERVICE_NAME"
+LAUNCHER_SERVICE_PATH="$SYSTEMD_DIR/$LAUNCHER_SERVICE_NAME"
 
 mkdir -p "$HOST_DIR" "$SYSTEMD_DIR"
 install -m 0755 "$SCRIPT_DIR/translategemma-host.py" "$HOST_PATH"
+install -m 0755 "$SCRIPT_DIR/translategemma-launcher.py" "$LAUNCHER_PATH"
 
 cat > "$SERVICE_PATH" <<EOF
 [Unit]
@@ -80,9 +84,27 @@ RestartSec=2
 WantedBy=default.target
 EOF
 
+cat > "$LAUNCHER_SERVICE_PATH" <<EOF
+[Unit]
+Description=KISS Translator TranslateGemma localhost launcher
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 "$LAUNCHER_PATH"
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target
+EOF
+
 systemctl --user daemon-reload
-# Deliberately do not enable the service. The browser extension starts it on demand.
+# The heavy llama.cpp service stays disabled and starts only on demand.
 systemctl --user disable "$SERVICE_NAME" >/dev/null 2>&1 || true
+# The lightweight localhost launcher is enabled so sandboxed browsers such as
+# Snap Brave can request backend startup without Native Messaging.
+systemctl --user enable --now "$LAUNCHER_SERVICE_NAME"
 
 write_manifest() {
   local dir="$1"
@@ -112,8 +134,10 @@ echo "  model:        $MODEL_PATH"
 echo "  device:       $DEVICE"
 echo "  parallel:     $PARALLEL"
 echo "  service:      $SERVICE_PATH"
+echo "  launcher:     $LAUNCHER_SERVICE_PATH"
 echo
-echo "The service is NOT enabled at login."
-echo "KISS Translator will start it automatically on the first request to localhost:$PORT."
+echo "The heavy llama.cpp service is NOT enabled at login."
+echo "A lightweight localhost launcher listens on 127.0.0.1:8765 and starts llama.cpp on demand."
+echo "This works with native browsers and sandboxed builds such as Brave Snap."
 echo
-echo "Now rebuild/reload the extension, then completely restart Chrome once."
+echo "Now rebuild/reload the extension."
