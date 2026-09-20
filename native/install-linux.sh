@@ -103,6 +103,7 @@ EOF
 write_manifest "$HOME/.config/google-chrome/NativeMessagingHosts"
 write_manifest "$HOME/.config/google-chrome-for-testing/NativeMessagingHosts"
 write_manifest "$HOME/.config/chromium/NativeMessagingHosts"
+write_manifest "$HOME/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts"
 
 echo
 echo "Installed TranslateGemma native launcher."
