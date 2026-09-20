@@ -78,6 +78,12 @@
     },
     "openOptions": {
       "description": "__MSG_open_options__"
+    },
+    "toggleLiveCaptions": {
+      "suggested_key": {
+        "default": "Alt+L"
+      },
+      "description": "Toggle local AI live captions"
     }
   },
   "permissions": [
@@ -87,7 +93,9 @@
     "scripting",
     "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess",
-    "nativeMessaging"
+    "nativeMessaging",
+    "tabCapture",
+    "offscreen"
   ],
   "optional_permissions": [
     "clipboardRead"
