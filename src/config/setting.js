@@ -203,6 +203,9 @@ export const DEFAULT_SUBTITLE_SETTING = {
   rememberPosition: false, // 是否记住字幕拖动后的相对位置
   positionRatio: 0.05, // 字幕底边相对播放器高度的比例
   aiContextSlug: "-", // 是否为字幕启用智能上下文，以获取更好的代词翻译效果
+  localAiChunkMs: 2200, // 本地 Qwen3-ASR 每次转录的音频长度
+  localAiOverlapMs: 300, // 相邻实时字幕音频块重叠长度，减少断词
+  localAiLanguage: "auto", // auto / yue / zh / ja / en
   segPromptMode: PROMPT_MODE_FOLLOW_API, // AI 断句提示词来源：接口默认或指定 subtitle prompt
   segPromptSlug: DEFAULT_SUBTITLE_PROMPT_SLUG, // 指定的 subtitle prompt slug，仅在指定提示词模式下生效
 };
