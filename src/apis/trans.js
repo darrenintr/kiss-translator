@@ -28,6 +28,7 @@ import {
   OPT_TRANS_CLAUDE,
   OPT_TRANS_CLOUDFLAREAI,
   OPT_TRANS_OLLAMA,
+  OPT_TRANS_TRANSLATEGEMMA,
   OPT_TRANS_OPENROUTER,
   OPT_TRANS_ORCAROUTER,
   OPT_TRANS_CUSTOMIZE,
@@ -1287,6 +1288,73 @@ const genOllama = ({
   return { url, body, headers, userMsg };
 };
 
+const buildTranslateGemmaPrompt = ({
+  text,
+  from,
+  to,
+  fromLang,
+  toLang,
+}) => {
+  if (!text) {
+    throw new Error("TranslateGemma text cannot be empty");
+  }
+  if (!fromLang || fromLang === "auto") {
+    throw new Error(
+      "TranslateGemma requires a concrete source language. Select it manually or enable local language detection."
+    );
+  }
+
+  const sourceName = from || fromLang;
+  const targetName = to || toLang;
+
+  return `<start_of_turn>user
+You are a professional ${sourceName} (${fromLang}) to ${targetName} (${toLang}) translator. Your goal is to accurately convey the meaning and nuances of the original ${sourceName} text while adhering to ${targetName} grammar, vocabulary, and cultural sensitivities.
+Produce only the ${targetName} translation, without any additional explanations or commentary. Please translate the following ${sourceName} text into ${targetName}:
+
+
+${String(text).trim()}<end_of_turn>
+<start_of_turn>model
+`;
+};
+
+const genTranslateGemma = ({
+  url,
+  texts,
+  from,
+  to,
+  fromLang,
+  toLang,
+  temperature = 0.1,
+  maxTokens = 2048,
+}) => {
+  const parsedTemperature = Number(temperature);
+  const parsedMaxTokens = Number(maxTokens);
+  const body = {
+    prompt: buildTranslateGemmaPrompt({
+      text: texts?.[0],
+      from,
+      to,
+      fromLang,
+      toLang,
+    }),
+    n_predict:
+      Number.isFinite(parsedMaxTokens) && parsedMaxTokens > 0
+        ? Math.min(Math.floor(parsedMaxTokens), 8192)
+        : 2048,
+    temperature: Number.isFinite(parsedTemperature) ? parsedTemperature : 0.1,
+    top_k: 64,
+    top_p: 0.95,
+    stop: ["<end_of_turn>"],
+    stream: false,
+    cache_prompt: true,
+  };
+  const headers = {
+    "Content-type": "application/json",
+  };
+
+  return { url, body, headers };
+};
+
 const genCloudflareAI = ({ texts, from, to, url, key }) => {
   const body = {
     text: texts.join(" "),
@@ -1343,6 +1411,7 @@ const genReqFuncs = {
   [OPT_TRANS_CLAUDE]: genClaude,
   [OPT_TRANS_CLOUDFLAREAI]: genCloudflareAI,
   [OPT_TRANS_OLLAMA]: genOllama,
+  [OPT_TRANS_TRANSLATEGEMMA]: genTranslateGemma,
   [OPT_TRANS_OPENROUTER]: genOpenRouter,
   [OPT_TRANS_ORCAROUTER]: genOrcaRouter,
   [OPT_TRANS_CUSTOMIZE]: genCustom,
@@ -1737,6 +1806,10 @@ export const parseTransRes = async (
     }
     case OPT_TRANS_CLOUDFLAREAI:
       return [[res?.result?.translated_text]];
+    case OPT_TRANS_TRANSLATEGEMMA: {
+      const content = typeof res?.content === "string" ? res.content.trim() : "";
+      return content ? [[content, fromLang]] : [];
+    }
     case OPT_TRANS_OLLAMA:
       modelMsg = res?.choices?.[0]?.message;
 
