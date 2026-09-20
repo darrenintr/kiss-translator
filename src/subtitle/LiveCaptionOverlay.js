@@ -9,19 +9,32 @@ const ROOT_ID = "kiss-local-ai-live-caption";
 
 function commonPrefixSuffixTrim(previous, current) {
   if (!previous || !current) return current;
-  const prevWords = previous.trim().split(/\s+/);
-  const curWords = current.trim().split(/\s+/);
-  let best = 0;
-  const max = Math.min(8, prevWords.length, curWords.length);
-  for (let n = 1; n <= max; n++) {
-    if (
-      prevWords.slice(-n).join(" ").toLowerCase() ===
-      curWords.slice(0, n).join(" ").toLowerCase()
-    ) {
-      best = n;
+
+  const prev = previous.trim();
+  const cur = current.trim();
+
+  // Character overlap works for Cantonese, Mandarin, and Japanese where
+  // whitespace is not a reliable token boundary.
+  const maxChars = Math.min(40, prev.length, cur.length);
+  for (let n = maxChars; n >= 2; n--) {
+    if (prev.slice(-n).toLocaleLowerCase() === cur.slice(0, n).toLocaleLowerCase()) {
+      return cur.slice(n).trim() || cur;
     }
   }
-  return curWords.slice(best).join(" ");
+
+  // Keep a word-level fallback for English and mixed-language speech.
+  const prevWords = prev.split(/\s+/);
+  const curWords = cur.split(/\s+/);
+  const maxWords = Math.min(8, prevWords.length, curWords.length);
+  for (let n = maxWords; n >= 1; n--) {
+    if (
+      prevWords.slice(-n).join(" ").toLocaleLowerCase() ===
+      curWords.slice(0, n).join(" ").toLocaleLowerCase()
+    ) {
+      return curWords.slice(n).join(" ").trim() || cur;
+    }
+  }
+  return cur;
 }
 
 function ensureOverlay() {
