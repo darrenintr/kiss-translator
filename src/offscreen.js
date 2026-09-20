@@ -154,6 +154,9 @@ async function startSession({ streamId, tabId, chunkMs = 2200, overlapMs = 300, 
   });
 
   const audioContext = new AudioContext();
+  if (audioContext.state === "suspended") {
+    await audioContext.resume();
+  }
   const source = audioContext.createMediaStreamSource(stream);
   const processor = audioContext.createScriptProcessor(4096, 1, 1);
 
@@ -203,14 +206,12 @@ async function startSession({ streamId, tabId, chunkMs = 2200, overlapMs = 300, 
   };
 }
 
-browser.runtime.onMessage.addListener(async ({ action, args }) => {
+browser.runtime.onMessage.addListener(({ action, args }) => {
   if (action === MSG_LOCAL_ASR_OFFSCREEN_START) {
-    await startSession(args || {});
-    return { ok: true };
+    return startSession(args || {}).then(() => ({ ok: true }));
   }
   if (action === MSG_LOCAL_ASR_OFFSCREEN_STOP) {
-    await stopSession();
-    return { ok: true };
+    return stopSession().then(() => ({ ok: true }));
   }
   return undefined;
 });
