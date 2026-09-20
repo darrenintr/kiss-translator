@@ -67,6 +67,7 @@ let openingOptionsPage = false;
 const TRANSLATEGEMMA_NATIVE_HOST =
   "io.github.darrenintr.kiss_translator.translategemma";
 const TRANSLATEGEMMA_HEALTH_URL = "http://127.0.0.1:8081/health";
+const TRANSLATEGEMMA_LAUNCHER_URL = "http://127.0.0.1:8765/start";
 const TRANSLATEGEMMA_LOCAL_URL_RE =
   /^https?:\/\/(?:127\.0\.0\.1|localhost):8081(?:\/|$)/i;
 const TRANSLATEGEMMA_READY_TTL_MS = 30000;
@@ -103,31 +104,60 @@ async function ensureTranslateGemmaBackend(input) {
   }
 
   translateGemmaStartPromise = (async () => {
-    if (typeof browser.runtime.sendNativeMessage !== "function") {
-      throw new Error(
-        "TranslateGemma native launcher is unavailable in this browser."
-      );
-    }
+    let localLauncherError;
 
-    let response;
+    // Prefer the localhost launcher. It works even when the browser itself is
+    // sandboxed (for example Brave/Chromium installed as a Snap), because the
+    // privileged systemd helper runs outside the browser sandbox.
     try {
-      response = await browser.runtime.sendNativeMessage(
-        TRANSLATEGEMMA_NATIVE_HOST,
-        { action: "ensure_started" }
-      );
+      const launcherResponse = await fetch(TRANSLATEGEMMA_LAUNCHER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-KISS-Translator-Launcher": "1",
+        },
+        body: "{}",
+        cache: "no-store",
+      });
+      const launcherBody = await launcherResponse.json().catch(() => ({}));
+      if (launcherResponse.ok && launcherBody?.ok) {
+        translateGemmaReadyUntil =
+          Date.now() + TRANSLATEGEMMA_READY_TTL_MS;
+        return;
+      }
+      localLauncherError =
+        launcherBody?.error ||
+        `launcher returned HTTP ${launcherResponse.status}`;
     } catch (err) {
-      throw new Error(
-        `TranslateGemma native launcher is not installed: ${err?.message || err}`
-      );
+      localLauncherError = err?.message || String(err);
     }
 
-    if (!response?.ok) {
-      throw new Error(
-        response?.error || "TranslateGemma native launcher failed to start llama.cpp."
-      );
+    // Keep Native Messaging as a fallback for native browser packages.
+    if (typeof browser.runtime.sendNativeMessage === "function") {
+      try {
+        const response = await browser.runtime.sendNativeMessage(
+          TRANSLATEGEMMA_NATIVE_HOST,
+          { action: "ensure_started" }
+        );
+        if (response?.ok) {
+          translateGemmaReadyUntil =
+            Date.now() + TRANSLATEGEMMA_READY_TTL_MS;
+          return;
+        }
+        throw new Error(
+          response?.error ||
+            "TranslateGemma native launcher failed to start llama.cpp."
+        );
+      } catch (err) {
+        throw new Error(
+          `TranslateGemma launcher unavailable. Local helper: ${localLauncherError || "unknown error"}. Native Messaging: ${err?.message || err}`
+        );
+      }
     }
 
-    translateGemmaReadyUntil = Date.now() + TRANSLATEGEMMA_READY_TTL_MS;
+    throw new Error(
+      `TranslateGemma launcher unavailable. Local helper: ${localLauncherError || "unknown error"}.`
+    );
   })();
 
   try {
