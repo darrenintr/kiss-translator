@@ -825,11 +825,11 @@ export default function SubtitleSetting() {
               label={i18n("settings_local_ai_shortcut", "Live caption shortcut")}
               description={i18n(
                 "settings_local_ai_shortcut_description",
-                "Press Alt+L on a video tab to start or stop local Qwen3-ASR captions. The local ASR server uses port 8082."
+                "Assign a shortcut (for example Alt+L) in chrome://extensions/shortcuts, then use it on a video tab to start or stop local Qwen3-ASR captions. The local ASR server uses port 8082."
               )}
             >
               <Typography variant="body2" color="text.secondary">
-                Alt+L
+                chrome://extensions/shortcuts
               </Typography>
             </SettingsRow>
             <SettingsRow
