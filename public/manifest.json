@@ -80,9 +80,6 @@
       "description": "__MSG_open_options__"
     },
     "toggleLiveCaptions": {
-      "suggested_key": {
-        "default": "Alt+L"
-      },
       "description": "Toggle local AI live captions"
     }
   },
