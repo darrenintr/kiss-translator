@@ -13,7 +13,7 @@ For TranslateGemma:
 
 For local AI live captions:
 
-1. Press **Alt+L** on a tab containing video or audio.
+1. Assign the **Toggle local AI live captions** command in `chrome://extensions/shortcuts` (for example **Alt+L**) and use it on a tab containing video or audio.
 2. The extension starts `kiss-qwen3-asr.service` on `127.0.0.1:8082` if needed.
 3. Chromium `tabCapture` sends the tab audio to an offscreen document.
 4. Audio is converted to 16 kHz mono WAV chunks and sent to `/v1/audio/transcriptions`.
@@ -142,4 +142,4 @@ Live logs:
 journalctl --user -u kiss-qwen3-asr.service -f
 ```
 
-The Chrome/Chromium extension uses **Alt+L** to toggle local AI captions. Recognition language, audio chunk length, and overlap can be changed under the subtitle settings.
+Assign a shortcut for **Toggle local AI live captions** in `chrome://extensions/shortcuts` (for example **Alt+L**). Recognition language, audio chunk length, and overlap can be changed under the subtitle settings.
