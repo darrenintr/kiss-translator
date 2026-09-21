@@ -51,6 +51,15 @@ test("preserves Gemma 4 in imported local-provider rules", () => {
   expect(rule.toLang).toBe("zh-TW");
 });
 
+test("preserves custom local Gemma 4 provider slugs", () => {
+  const apiSlug = `${OPT_TRANS_GEMMA4}_test-local-instance`;
+  const [rule] = checkRules([
+    { pattern: "example.com", apiSlug, toLang: "zh-TW" },
+  ]);
+
+  expect(rule.apiSlug).toBe(apiSlug);
+});
+
 describe("rules enabled state", () => {
   beforeEach(() => {
     jest.clearAllMocks();
