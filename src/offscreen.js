@@ -124,11 +124,97 @@ function parseAsrResponse(json) {
   };
 }
 
-async function transcribe(wav, language) {
+function cleanStreamingAsrText(rawText) {
+  const raw = String(rawText || "");
+  const marker = raw.toLowerCase().indexOf("<asr_text>");
+  if (marker >= 0) {
+    return raw.slice(marker + "<asr_text>".length).trimStart();
+  }
+
+  // Qwen3-ASR can emit its language header before the transcript marker.
+  // Do not flash that internal metadata as a live subtitle.
+  if (/^\s*language(?:\s|$)/i.test(raw)) return "";
+  return raw.trimStart();
+}
+
+async function readStreamingAsr(response, onPartial) {
+  if (!response.body?.getReader) {
+    return parseAsrResponse(await response.json());
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let generated = "";
+  let finalText = "";
+
+  const handlePayload = (payload) => {
+    const data = String(payload || "").trim();
+    if (!data || data === "[DONE]") return;
+
+    let event;
+    try {
+      event = JSON.parse(data);
+    } catch {
+      return;
+    }
+
+    if (event?.type === "transcript.text.delta") {
+      generated += String(event.delta || "");
+      const partial = cleanStreamingAsrText(generated);
+      if (partial) onPartial?.(partial);
+      return;
+    }
+
+    if (event?.type === "transcript.text.done") {
+      finalText = String(event.text || generated);
+      return;
+    }
+
+    // Be tolerant of older/newer llama.cpp response shapes.
+    if (typeof event?.delta === "string") {
+      generated += event.delta;
+      const partial = cleanStreamingAsrText(generated);
+      if (partial) onPartial?.(partial);
+    } else if (typeof event?.text === "string") {
+      finalText = event.text;
+    } else if (typeof event?.content === "string") {
+      finalText = event.content;
+    }
+  };
+
+  const drainLines = (flush = false) => {
+    const lines = buffer.split(/\r?\n/);
+    if (!flush) buffer = lines.pop() ?? "";
+    else buffer = "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("event:")) continue;
+      handlePayload(trimmed.startsWith("data:") ? trimmed.slice(5) : trimmed);
+    }
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    drainLines(false);
+  }
+
+  buffer += decoder.decode();
+  drainLines(true);
+
+  return parseAsrResponse({ text: finalText || generated });
+}
+
+async function transcribe(wav, language, onPartial) {
   const form = new FormData();
   form.append("file", wav, "live.wav");
   form.append("response_format", "json");
   form.append("temperature", "0");
+  form.append("stream", "true");
+  form.append("max_tokens", "96");
   if (language && language !== "auto") form.append("language", language);
 
   const response = await fetch(ASR_URL, {
@@ -140,7 +226,7 @@ async function transcribe(wav, language) {
     const body = await response.text().catch(() => "");
     throw new Error(`ASR HTTP ${response.status}: ${body.slice(0, 300)}`);
   }
-  return parseAsrResponse(await response.json());
+  return readStreamingAsr(response, onPartial);
 }
 
 async function processQueue(current) {
@@ -150,7 +236,35 @@ async function processQueue(current) {
     while (current.queue.length && session === current) {
       const item = current.queue.shift();
       try {
-        const result = await transcribe(item.wav, current.language);
+        let lastPartialText = "";
+        let lastPartialAt = 0;
+        const emitPartial = (text) => {
+          if (session !== current) return;
+          const partial = String(text || "").trim();
+          if (!partial || partial === lastPartialText) return;
+
+          // Keep the overlay smooth without sending one extension message for
+          // every single generated token.
+          const now = performance.now();
+          if (now - lastPartialAt < 45) return;
+          lastPartialText = partial;
+          lastPartialAt = now;
+
+          browser.runtime
+            .sendMessage({
+              action: MSG_LOCAL_ASR_RESULT,
+              args: {
+                tabId: current.tabId,
+                text: partial,
+                startedAt: item.startedAt,
+                endedAt: item.endedAt,
+                final: false,
+              },
+            })
+            .catch(() => undefined);
+        };
+
+        const result = await transcribe(item.wav, current.language, emitPartial);
         if (result.text && session === current) {
           await browser.runtime.sendMessage({
             action: MSG_LOCAL_ASR_RESULT,
@@ -198,7 +312,7 @@ async function stopSession() {
   try { await current.audioContext?.close(); } catch {}
 }
 
-async function startSession({ streamId, tabId, chunkMs = 2200, overlapMs = 300, language = "auto" }) {
+async function startSession({ streamId, tabId, chunkMs = 1000, overlapMs = 200, language = "auto" }) {
   await stopSession();
 
   const stream = await navigator.mediaDevices.getUserMedia({
