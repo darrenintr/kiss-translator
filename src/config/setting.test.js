@@ -7,6 +7,7 @@ import {
 } from "./setting";
 import {
   DEFAULT_LOCAL_API_LIST,
+  OPT_TRANS_GEMMA4,
   OPT_TRANS_TRANSLATEGEMMA,
 } from "./api";
 import { GLOBAL_KEY } from "./rules";
@@ -52,10 +53,12 @@ describe("translation box defaults", () => {
     expect(DEFAULT_MOUSE_HOVER_SETTING.apiSlug).toBe(GLOBAL_KEY);
   });
 
-  test("exposes only the local provider in fresh settings", () => {
+  test("exposes both local providers in fresh settings", () => {
     expect(DEFAULT_SETTING.transApis).toBe(DEFAULT_LOCAL_API_LIST);
-    expect(DEFAULT_SETTING.transApis).toHaveLength(1);
-    expect(DEFAULT_SETTING.transApis[0].apiType).toBe(OPT_TRANS_TRANSLATEGEMMA);
+    expect(DEFAULT_SETTING.transApis.map((api) => api.apiType)).toEqual([
+      OPT_TRANS_TRANSLATEGEMMA,
+      OPT_TRANS_GEMMA4,
+    ]);
     expect(DEFAULT_SETTING).not.toHaveProperty("deletedTransApiSlugs");
   });
 });
