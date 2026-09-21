@@ -181,10 +181,14 @@ async function fetchWithTranslateGemmaAutostart(args) {
 
 const LOCAL_ASR_HEALTH_URL = "http://127.0.0.1:8082/health";
 const LOCAL_ASR_LAUNCHER_URL = "http://127.0.0.1:8765/start-asr";
+const GEMMA4_HEALTH_URL = "http://127.0.0.1:8083/health";
+const GEMMA4_LAUNCHER_URL = "http://127.0.0.1:8765/start-gemma4";
 const LOCAL_ASR_READY_TTL_MS = 30000;
 
 let localAsrReadyUntil = 0;
 let localAsrStartPromise = null;
+let gemma4ReadyUntil = 0;
+let gemma4StartPromise = null;
 let activeLiveCaptionTabId = null;
 
 async function checkLocalAsrHealth() {
@@ -196,6 +200,76 @@ async function checkLocalAsrHealth() {
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+async function checkGemma4Health() {
+  try {
+    const response = await fetch(GEMMA4_HEALTH_URL, {
+      method: "GET",
+      cache: "no-store",
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureGemma4Backend() {
+  if (Date.now() < gemma4ReadyUntil) return;
+  if (await checkGemma4Health()) {
+    gemma4ReadyUntil = Date.now() + LOCAL_ASR_READY_TTL_MS;
+    return;
+  }
+  if (gemma4StartPromise) return gemma4StartPromise;
+
+  gemma4StartPromise = (async () => {
+    let localLauncherError;
+    try {
+      const response = await fetch(GEMMA4_LAUNCHER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-KISS-Translator-Launcher": "1",
+        },
+        body: "{}",
+        cache: "no-store",
+      });
+      const body = await response.json().catch(() => ({}));
+      if (response.ok && body?.ok) {
+        gemma4ReadyUntil = Date.now() + LOCAL_ASR_READY_TTL_MS;
+        return;
+      }
+      localLauncherError =
+        body?.error || `launcher returned HTTP ${response.status}`;
+    } catch (err) {
+      localLauncherError = err?.message || String(err);
+    }
+
+    if (typeof browser.runtime.sendNativeMessage === "function") {
+      const response = await browser.runtime
+        .sendNativeMessage(TRANSLATEGEMMA_NATIVE_HOST, {
+          action: "ensure_gemma4_started",
+        })
+        .catch((err) => ({ ok: false, error: err?.message || String(err) }));
+      if (response?.ok) {
+        gemma4ReadyUntil = Date.now() + LOCAL_ASR_READY_TTL_MS;
+        return;
+      }
+      throw new Error(
+        `Gemma 4 launcher unavailable. Local helper: ${localLauncherError || "unknown error"}. Native Messaging: ${response?.error || "unknown error"}`
+      );
+    }
+
+    throw new Error(
+      `Gemma 4 launcher unavailable. Local helper: ${localLauncherError || "unknown error"}.`
+    );
+  })();
+
+  try {
+    await gemma4StartPromise;
+  } finally {
+    gemma4StartPromise = null;
   }
 }
 
@@ -303,15 +377,21 @@ async function startLocalAsrSession(tabId) {
     throw new Error("This browser does not support tab audio capture for local captions.");
   }
 
-  await ensureLocalAsrBackend();
+  const setting = await getSettingWithDefault();
+  const subtitleSetting = setting.subtitleSetting || {};
+  const engine = subtitleSetting.localAiEngine || "gemma4";
+
+  if (engine === "gemma4") {
+    await ensureGemma4Backend();
+  } else {
+    await ensureLocalAsrBackend();
+  }
   await ensureLocalAsrOffscreenDocument();
 
   if (activeLiveCaptionTabId != null && activeLiveCaptionTabId !== tabId) {
     await stopLocalAsrSession(activeLiveCaptionTabId);
   }
 
-  const setting = await getSettingWithDefault();
-  const subtitleSetting = setting.subtitleSetting || {};
   const streamId = await chromeApi.tabCapture.getMediaStreamId({
     targetTabId: tabId,
   });
@@ -333,6 +413,7 @@ async function startLocalAsrSession(tabId) {
         chunkMs: subtitleSetting.localAiChunkMs ?? 2200,
         overlapMs: subtitleSetting.localAiOverlapMs ?? 300,
         language: subtitleSetting.localAiLanguage ?? "auto",
+        engine,
       },
     });
   } catch (err) {
