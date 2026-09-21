@@ -301,14 +301,49 @@ describe("settings storage migration", () => {
 
     const setting = await getSettingWithDefault();
 
-    expect(setting.transApis).toHaveLength(1);
-    expect(setting.transApis[0].apiType).toBe(OPT_TRANS_TRANSLATEGEMMA);
+    expect(setting.transApis.map((api) => api.apiType)).toEqual([
+      OPT_TRANS_TRANSLATEGEMMA,
+      OPT_TRANS_GEMMA4,
+    ]);
     expect(readStoredJson(STOKEY_SETTING)).toEqual(storedSetting);
   });
 
-  test("uses only TranslateGemma for a fresh installation", async () => {
+  test("uses both local providers for a fresh installation", async () => {
     const setting = await getSettingWithDefault();
 
+    expect(setting.transApis.map((api) => api.apiType)).toEqual([
+      OPT_TRANS_TRANSLATEGEMMA,
+      OPT_TRANS_GEMMA4,
+    ]);
+  });
+
+  test("preserves Gemma 4 as an explicitly selected local provider", async () => {
+    window.localStorage.setItem(
+      STOKEY_SETTING,
+      JSON.stringify({
+        version: SETTINGS_VERSION_V3,
+        transApis: [
+          {
+            apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+            apiType: OPT_TRANS_TRANSLATEGEMMA,
+          },
+          {
+            apiSlug: OPT_TRANS_GEMMA4,
+            apiType: OPT_TRANS_GEMMA4,
+            url: "http://127.0.0.1:8083/v1/chat/completions",
+          },
+        ],
+        inputRule: { apiSlug: OPT_TRANS_GEMMA4 },
+        tranboxSetting: { apiSlugs: [OPT_TRANS_GEMMA4] },
+        subtitleSetting: { apiSlug: OPT_TRANS_GEMMA4 },
+      })
+    );
+
+    const setting = await getSettingWithDefault();
+
+    expect(setting.inputRule.apiSlug).toBe(OPT_TRANS_GEMMA4);
+    expect(setting.tranboxSetting.apiSlugs).toEqual([OPT_TRANS_GEMMA4]);
+    expect(setting.subtitleSetting.apiSlug).toBe(OPT_TRANS_GEMMA4);
     expect(setting.transApis.map((api) => api.apiType)).toEqual([
       OPT_TRANS_TRANSLATEGEMMA,
       OPT_TRANS_GEMMA4,
