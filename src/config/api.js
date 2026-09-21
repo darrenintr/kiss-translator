@@ -82,41 +82,7 @@ export const OPT_TRANS_ORCAROUTER = "OrcaRouter"; // OrcaRouter 多模型聚合 
 export const OPT_TRANS_CUSTOMIZE = "Custom"; // 自定义翻译 API
 
 // 内置支持的翻译引擎
-export const OPT_ALL_TRANS_TYPES = [
-  OPT_TRANS_BUILTINAI,
-  OPT_TRANS_GOOGLE,
-  OPT_TRANS_GOOGLE_2,
-  OPT_TRANS_GOOGLE_CLOUD,
-  OPT_TRANS_MICROSOFT,
-  OPT_TRANS_AZUREAI,
-  // OPT_TRANS_BAIDU,
-  OPT_TRANS_DEEPSEEK,
-  OPT_TRANS_OPENCODEGO,
-  OPT_TRANS_SILICONFLOW,
-  OPT_TRANS_XIAOMIMIMO,
-  OPT_TRANS_ALIYUNBAILIAN,
-  OPT_TRANS_QWENMT,
-  OPT_TRANS_CEREBRAS,
-  OPT_TRANS_ZAI,
-  OPT_TRANS_TENCENT,
-  OPT_TRANS_VOLCENGINE,
-  OPT_TRANS_YANDEX,
-  OPT_TRANS_YANDEXFREE,
-  OPT_TRANS_DEEPL,
-  OPT_TRANS_DEEPLFREE,
-  OPT_TRANS_DEEPLX,
-  OPT_TRANS_EPHONEAI,
-  OPT_TRANS_OPENAI,
-  OPT_TRANS_GEMINI,
-  OPT_TRANS_GEMINI_2,
-  OPT_TRANS_CLAUDE,
-  OPT_TRANS_CLOUDFLAREAI,
-  OPT_TRANS_OLLAMA,
-  OPT_TRANS_TRANSLATEGEMMA,
-  OPT_TRANS_OPENROUTER,
-  OPT_TRANS_ORCAROUTER,
-  OPT_TRANS_CUSTOMIZE,
-];
+export const OPT_ALL_TRANS_TYPES = [OPT_TRANS_TRANSLATEGEMMA];
 
 export const OPT_LANGDETECTOR_ALL = [
   OPT_TRANS_BUILTINAI,
@@ -921,7 +887,6 @@ export const PLACETAG_FORMATS = ["compact", "attribute"]; // 占位符格式：�
 
 export const OPT_LANGS_TO = [
   ["en", "English - English"],
-  ["zh-CN", "Simplified Chinese - 简体中文"],
   ["zh-TW", "Traditional Chinese - 繁體中文"],
   ["ar", "Arabic - العربية"],
   ["bg", "Bulgarian - Български"],
@@ -959,9 +924,16 @@ export const OPT_LANGS_TO = [
   ["uk", "Ukrainian - Українська"],
   ["vi", "Vietnamese - Tiếng Việt"],
 ];
-export const OPT_LANGS_LIST = OPT_LANGS_TO.map(([lang]) => lang);
+// zh-CN remains an internal source-language alias so local detection can
+// correctly distinguish Simplified Chinese input from the zh-TW target.
+// It is intentionally not exposed as a translation target.
+export const OPT_LANGS_LIST = [
+  "zh-CN",
+  ...OPT_LANGS_TO.map(([lang]) => lang),
+];
 export const OPT_LANGS_FROM = [
   ["auto", "AutoDetect - AutoDetect"],
+  ["zh-CN", "Chinese - 中文"],
   ...OPT_LANGS_TO,
 ];
 export const OPT_LANGS_MAP = new Map(OPT_LANGS_TO);
@@ -1823,7 +1795,7 @@ export function normalizeApiModelListUrls(transApis = []) {
   return hasChanges ? nextApis : transApis;
 }
 
-export const DEFAULT_API_TYPE = OPT_TRANS_MICROSOFT;
+export const DEFAULT_API_TYPE = OPT_TRANS_TRANSLATEGEMMA;
 export const DEFAULT_API_SETTING = DEFAULT_API_LIST.find(
   (a) => a.apiType === DEFAULT_API_TYPE
 );
