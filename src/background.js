@@ -399,7 +399,7 @@ async function startLocalAsrSession(tabId) {
   activeLiveCaptionTabId = tabId;
   await sendTabMsg(
     MSG_LOCAL_ASR_STATE,
-    { active: true },
+    { active: true, engine },
     { frameId: 0 },
     tabId
   ).catch(() => undefined);
