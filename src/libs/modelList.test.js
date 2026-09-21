@@ -6,6 +6,7 @@ import {
 import {
   OPT_TRANS_GEMINI,
   OPT_TRANS_GEMINI_2,
+  OPT_TRANS_GEMMA4,
   OPT_TRANS_OPENAI,
 } from "../config/api";
 
@@ -91,6 +92,21 @@ describe("modelList", () => {
   test("returns an empty list for invalid responses", () => {
     expect(parseModelListResponse(null)).toEqual([]);
     expect(parseModelListResponse({ data: "invalid" })).toEqual([]);
+  });
+
+  test("builds a keyless model-list request for local Gemma 4", () => {
+    expect(
+      createModelListRequest({
+        apiType: OPT_TRANS_GEMMA4,
+        modelListUrl: "http://127.0.0.1:8083/v1/models",
+        key: "",
+      })
+    ).toEqual({
+      input: "http://127.0.0.1:8083/v1/models",
+      init: {
+        method: "GET",
+      },
+    });
   });
 
   test("builds bearer auth requests by default", () => {
