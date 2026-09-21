@@ -1,4 +1,4 @@
-import { OPT_TRANS_GEMINI } from "../config/api";
+import { OPT_TRANS_GEMINI, OPT_TRANS_GEMMA4 } from "../config/api";
 
 // 模型列表 URL 中可显式放置该占位符；存在占位符时不会额外注入 Authorization 头。
 const MODEL_KEY_PLACEHOLDER = "{{key}}";
@@ -172,9 +172,21 @@ export function createModelListRequest({ apiType, modelListUrl, key }) {
   const trimmedUrl = (modelListUrl || "").trim();
   const trimmedKey = (key || "").trim();
 
-  // 用户没有同时配置模型列表 URL 和 Key 时，不发起网络请求。
-  if (!trimmedUrl || !trimmedKey) {
+  const isKeylessLocalProvider = apiType === OPT_TRANS_GEMMA4;
+
+  // Local llama.cpp does not require an API key. Remote providers keep the
+  // existing URL + key requirement.
+  if (!trimmedUrl || (!trimmedKey && !isKeylessLocalProvider)) {
     return null;
+  }
+
+  if (isKeylessLocalProvider) {
+    return {
+      input: trimmedUrl,
+      init: {
+        method: "GET",
+      },
+    };
   }
 
   // 显式占位符优先，允许用户自行决定 key 位于 path、query 或其他自定义位置。
