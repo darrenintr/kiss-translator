@@ -26,6 +26,7 @@ import {
   OPT_TRANS_ALIYUNBAILIAN,
   OPT_TRANS_MICROSOFT,
   OPT_TRANS_TRANSLATEGEMMA,
+  OPT_TRANS_GEMMA4,
   OPT_TRANS_SILICONFLOW,
   OPT_TRANS_OPENAI,
   OPT_TRANS_OPENCODEGO,
@@ -47,10 +48,40 @@ test("retains Microsoft only in the compatibility provider catalog", () => {
   ).toBe(true);
 });
 
-test("exposes only TranslateGemma to the local-only runtime", () => {
-  expect(OPT_ALL_TRANS_TYPES).toEqual([OPT_TRANS_TRANSLATEGEMMA]);
-  expect(DEFAULT_LOCAL_API_LIST).toHaveLength(1);
-  expect(DEFAULT_LOCAL_API_LIST[0].apiType).toBe(OPT_TRANS_TRANSLATEGEMMA);
+test("exposes only the two local providers to the local-only runtime", () => {
+  expect(OPT_ALL_TRANS_TYPES).toEqual([
+    OPT_TRANS_TRANSLATEGEMMA,
+    OPT_TRANS_GEMMA4,
+  ]);
+  expect(DEFAULT_LOCAL_API_LIST.map((api) => api.apiType)).toEqual([
+    OPT_TRANS_TRANSLATEGEMMA,
+    OPT_TRANS_GEMMA4,
+  ]);
+});
+
+test("configures Gemma 4 E2B as a local multimodal AI provider", () => {
+  const gemma4 = DEFAULT_API_LIST.find(
+    (api) => api.apiType === OPT_TRANS_GEMMA4
+  );
+
+  expect(gemma4).toMatchObject({
+    apiSlug: OPT_TRANS_GEMMA4,
+    apiName: "Gemma 4 E2B",
+    apiType: OPT_TRANS_GEMMA4,
+    url: "http://127.0.0.1:8083/v1/chat/completions",
+    modelListUrl: "http://127.0.0.1:8083/v1/models",
+    model: "gemma-4-E2B-it-abliterated.Q4_K_M.gguf",
+    fetchLimit: 1,
+    fetchInterval: 0,
+    batchConcurrency: 1,
+    useBatchFetch: true,
+    useStream: true,
+  });
+  expect(API_SPE_TYPES.ai.has(OPT_TRANS_GEMMA4)).toBe(true);
+  expect(API_SPE_TYPES.batch.has(OPT_TRANS_GEMMA4)).toBe(true);
+  expect(API_SPE_TYPES.context.has(OPT_TRANS_GEMMA4)).toBe(true);
+  expect(API_SPE_TYPES.stream.has(OPT_TRANS_GEMMA4)).toBe(true);
+  expect(API_SPE_TYPES.mulkeys.has(OPT_TRANS_GEMMA4)).toBe(false);
 });
 
 test("does not expose Simplified Chinese as a translation target", () => {
