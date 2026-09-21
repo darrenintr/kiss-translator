@@ -9,6 +9,7 @@ import {
 globalThis.__KISS_CONTEXT__ = "offscreen";
 
 const ASR_URL = "http://127.0.0.1:8082/v1/audio/transcriptions";
+const GEMMA4_URL = "http://127.0.0.1:8083/v1/chat/completions";
 const TARGET_SAMPLE_RATE = 16000;
 
 let session = null;
@@ -124,6 +125,94 @@ function parseAsrResponse(json) {
   };
 }
 
+async function blobToBase64(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function parseGemma4Response(json) {
+  const raw = String(json?.choices?.[0]?.message?.content || "").trim();
+  if (!raw) return { text: "", translation: "" };
+
+  const fenced = raw.match(/\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`/i);
+  const candidate = String(fenced?.[1] || raw).trim();
+  try {
+    const parsed = JSON.parse(candidate);
+    return {
+      text: String(parsed?.transcript || parsed?.text || "").trim(),
+      translation: String(
+        parsed?.translation || parsed?.traditional_chinese || ""
+      ).trim(),
+      detectedLanguage: normalizeAsrLanguage(parsed?.language || ""),
+      detectedLanguageName: String(parsed?.language || "").trim(),
+    };
+  } catch {
+    const transcript = raw.match(
+      /(?:^|\n)\s*(?:transcript|original)\s*:\s*([^\n]+)/i
+    )?.[1];
+    const translation = raw.match(
+      /(?:^|\n)\s*(?:translation|traditional chinese|繁體中文)\s*:\s*([^\n]+)/i
+    )?.[1];
+    return {
+      text: String(transcript || raw).trim(),
+      translation: String(translation || "").trim(),
+      detectedLanguage: "",
+      detectedLanguageName: "",
+    };
+  }
+}
+
+async function transcribeWithGemma4(wav, language) {
+  const audio = await blobToBase64(wav);
+  const languageHint =
+    language && language !== "auto"
+      ? `The expected spoken language code is ${language}. `
+      : "";
+
+  const response = await fetch(GEMMA4_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({
+      temperature: 0,
+      max_tokens: 256,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text:
+                languageHint +
+                "Listen to this audio. Transcribe only the spoken words accurately, then translate them naturally into Traditional Chinese (zh-TW). Preserve product names and technical terms. Return JSON only with keys language, transcript, translation. Do not add commentary.",
+            },
+            {
+              type: "input_audio",
+              input_audio: {
+                data: audio,
+                format: "wav",
+              },
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Gemma 4 HTTP ${response.status}: ${body.slice(0, 300)}`
+    );
+  }
+  return parseGemma4Response(await response.json());
+}
+
 async function transcribe(wav, language) {
   const form = new FormData();
   form.append("file", wav, "live.wav");
@@ -150,7 +239,10 @@ async function processQueue(current) {
     while (current.queue.length && session === current) {
       const item = current.queue.shift();
       try {
-        const result = await transcribe(item.wav, current.language);
+        const result =
+          current.engine === "gemma4"
+            ? await transcribeWithGemma4(item.wav, current.language)
+            : await transcribe(item.wav, current.language);
         if (result.text && session === current) {
           await browser.runtime.sendMessage({
             action: MSG_LOCAL_ASR_RESULT,
@@ -159,6 +251,8 @@ async function processQueue(current) {
               text: result.text,
               detectedLanguage: result.detectedLanguage,
               detectedLanguageName: result.detectedLanguageName,
+              translation: result.translation || "",
+              engine: current.engine,
               startedAt: item.startedAt,
               endedAt: item.endedAt,
               final: true,
@@ -198,7 +292,14 @@ async function stopSession() {
   try { await current.audioContext?.close(); } catch {}
 }
 
-async function startSession({ streamId, tabId, chunkMs = 2200, overlapMs = 300, language = "auto" }) {
+async function startSession({
+  streamId,
+  tabId,
+  chunkMs = 2200,
+  overlapMs = 300,
+  language = "auto",
+  engine = "gemma4",
+}) {
   await stopSession();
 
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -230,6 +331,7 @@ async function startSession({ streamId, tabId, chunkMs = 2200, overlapMs = 300, 
     processor,
     tabId,
     language,
+    engine,
     chunkMs,
     overlapMs,
     chunks: [],
