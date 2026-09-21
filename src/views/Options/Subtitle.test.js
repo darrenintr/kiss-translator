@@ -246,6 +246,15 @@ describe("Subtitle style persistence", () => {
   );
 });
 
+describe("Local AI caption engine", () => {
+  test("renders Gemma 4 and Qwen3-ASR engine choices", () => {
+    const view = renderSubtitle({ localAiEngine: "gemma4" });
+    expect(view.container.textContent).toContain("Gemma 4 E2B");
+    expect(view.container.textContent).toContain("Qwen3-ASR 0.6B");
+    view.unmount();
+  });
+});
+
 describe("Subtitle segmentation warning", () => {
   // 三向门控：只有在强制重翻译、启用了 AI 断句、且断句服务与翻译服务不同时才警告。
   // 这条文案的历史值得留意：b436d5b 加入，a07d39f 删除，1b10d45 有意恢复。
