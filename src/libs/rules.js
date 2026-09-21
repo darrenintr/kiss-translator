@@ -14,6 +14,7 @@ import {
   OPT_SPLIT_PARAGRAPH_ALL,
   OPT_HIGHLIGHT_WORDS_ALL,
   OPT_TRANS_TRANSLATEGEMMA,
+  OPT_ALL_TRANS_TYPES,
 } from "../config";
 import { loadOrFetchSubRules } from "./subRules";
 import { getRulesWithDefault, saveEdit, getDisabledSubRules } from "./storage";
@@ -391,7 +392,9 @@ export const checkRules = (rules) => {
         injectJs: type(injectJs) === "string" ? injectJs : "",
         injectCss: type(injectCss) === "string" ? injectCss : "",
         apiSlug:
-          apiSlug === GLOBAL_KEY ? GLOBAL_KEY : OPT_TRANS_TRANSLATEGEMMA,
+          apiSlug === GLOBAL_KEY || OPT_ALL_TRANS_TYPES.includes(apiSlug)
+            ? apiSlug
+            : OPT_TRANS_TRANSLATEGEMMA,
         fromLang: matchValue([GLOBAL_KEY, ...fromLangs], fromLang),
         toLang: matchValue(
           [GLOBAL_KEY, ...toLangs],
