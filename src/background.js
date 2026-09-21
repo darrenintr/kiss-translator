@@ -77,6 +77,8 @@ const TRANSLATEGEMMA_HEALTH_URL = "http://127.0.0.1:8081/health";
 const TRANSLATEGEMMA_LAUNCHER_URL = "http://127.0.0.1:8765/start";
 const TRANSLATEGEMMA_LOCAL_URL_RE =
   /^https?:\/\/(?:127\.0\.0\.1|localhost):8081(?:\/|$)/i;
+const GEMMA4_LOCAL_URL_RE =
+  /^https?:\/\/(?:127\.0\.0\.1|localhost):8083(?:\/|$)/i;
 const TRANSLATEGEMMA_READY_TTL_MS = 30000;
 
 let translateGemmaReadyUntil = 0;
@@ -174,8 +176,19 @@ async function ensureTranslateGemmaBackend(input) {
   }
 }
 
-async function fetchWithTranslateGemmaAutostart(args) {
-  await ensureTranslateGemmaBackend(args?.input);
+async function ensureLocalAiBackendForRequest(input) {
+  const url = String(input || "");
+  if (TRANSLATEGEMMA_LOCAL_URL_RE.test(url)) {
+    await ensureTranslateGemmaBackend(url);
+    return;
+  }
+  if (GEMMA4_LOCAL_URL_RE.test(url)) {
+    await ensureGemma4Backend();
+  }
+}
+
+async function fetchWithLocalAiAutostart(args) {
+  await ensureLocalAiBackendForRequest(args?.input);
   return fetchHandle(args);
 }
 
@@ -1109,7 +1122,7 @@ const messageHandlers = {
     Number.isInteger(sender?.frameId) ? sender.frameId : undefined,
   [MSG_VALIDATE_DOCUMENT]: (args, sender) =>
     isCurrentPopupDocument(sender?.tab?.id, args),
-  [MSG_FETCH]: (args) => fetchWithTranslateGemmaAutostart(args), // 跨域请求代理；本地 TranslateGemma 按需启动
+  [MSG_FETCH]: (args) => fetchWithLocalAiAutostart(args), // 跨域请求代理；本地 AI 服务按 URL 按需启动
   [MSG_GET_HTTPCACHE]: (args) => getHttpCache(args), // 读取翻译 HTTP 缓存
   [MSG_PUT_HTTPCACHE]: (args) => putHttpCache(args), // 存入翻译 HTTP 缓存
   [MSG_SHA256]: ({ text = "", salt = "" } = {}) => sha256(text, salt), // 代算缓存签名
@@ -1236,6 +1249,7 @@ async function handleStreamFetch(port, args) {
   port.onDisconnect.addListener(handleDisconnect);
 
   try {
+    await ensureLocalAiBackendForRequest(input);
     for await (const chunk of fetchStreamNative(input, init, {
       httpTimeout: opts.httpTimeout,
       signal: controller.signal,
