@@ -39,8 +39,8 @@ describe("translation box defaults", () => {
     expect(DEFAULT_TRANBOX_SETTING.skipLangs).toEqual([]);
   });
 
-  test("uses Gemma 4 as the default local live-caption engine", () => {
-    expect(DEFAULT_SUBTITLE_SETTING.localAiEngine).toBe("gemma4");
+  test("uses Qwen3-ASR as the stable local live-caption default", () => {
+    expect(DEFAULT_SUBTITLE_SETTING.localAiEngine).toBe("qwen3-asr");
     expect(DEFAULT_SUBTITLE_SETTING.localAiLanguage).toBe("auto");
   });
 
