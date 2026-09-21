@@ -11,6 +11,8 @@ BACKEND_SERVICE = "kiss-translategemma.service"
 BACKEND_HEALTH_URL = "http://127.0.0.1:8081/health"
 ASR_SERVICE = "kiss-qwen3-asr.service"
 ASR_HEALTH_URL = "http://127.0.0.1:8082/health"
+GEMMA4_SERVICE = "kiss-gemma4.service"
+GEMMA4_HEALTH_URL = "http://127.0.0.1:8083/health"
 START_TIMEOUT_SECONDS = 45
 REQUIRED_HEADER = "X-KISS-Translator-Launcher"
 REQUIRED_VALUE = "1"
@@ -84,7 +86,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(404, {"ok": False, "error": "not found"})
 
     def do_POST(self):
-        if self.path not in ("/start", "/start-asr"):
+        if self.path not in ("/start", "/start-asr", "/start-gemma4"):
             self.send_json(404, {"ok": False, "error": "not found"})
             return
 
@@ -101,6 +103,8 @@ class Handler(BaseHTTPRequestHandler):
 
             if self.path == "/start-asr":
                 result = ensure_backend_started(ASR_SERVICE, ASR_HEALTH_URL)
+            elif self.path == "/start-gemma4":
+                result = ensure_backend_started(GEMMA4_SERVICE, GEMMA4_HEALTH_URL)
             else:
                 result = ensure_backend_started()
             self.send_json(200, result)
