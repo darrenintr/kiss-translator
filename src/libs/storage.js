@@ -586,6 +586,34 @@ const mergeSettingWithDefault = (setting) => {
 
   return mergedSetting;
 };
+const needsLocalOnlyMigration = (setting) => {
+  if (!setting || typeof setting !== "object") return true;
+  const transApis = Array.isArray(setting.transApis) ? setting.transApis : [];
+  const onlyTranslateGemma =
+    transApis.length === 1 &&
+    (transApis[0]?.apiType === OPT_TRANS_TRANSLATEGEMMA ||
+      transApis[0]?.apiSlug === OPT_TRANS_TRANSLATEGEMMA);
+  const hasLegacySimplifiedTarget = [
+    setting?.inputRule?.toLang,
+    setting?.tranboxSetting?.toLang,
+    setting?.subtitleSetting?.toLang,
+  ].includes("zh-CN");
+
+  return (
+    !onlyTranslateGemma ||
+    setting.uiLang === "zh" ||
+    setting.langDetector !== "-" ||
+    hasLegacySimplifiedTarget ||
+    setting?.inputRule?.apiSlug !== OPT_TRANS_TRANSLATEGEMMA ||
+    !(
+      Array.isArray(setting?.tranboxSetting?.apiSlugs) &&
+      setting.tranboxSetting.apiSlugs.length === 1 &&
+      setting.tranboxSetting.apiSlugs[0] === OPT_TRANS_TRANSLATEGEMMA
+    ) ||
+    setting?.subtitleSetting?.apiSlug !== OPT_TRANS_TRANSLATEGEMMA
+  );
+};
+
 export const migrateStoredSettingToV2 = async (
   setting,
   backupSetting = setting
@@ -606,7 +634,10 @@ export const runDataMigration = async () => {
   const needsSchemaMigration =
     getSettingVersion(rawSetting) < CURRENT_SETTINGS_VERSION;
   const needsThemeMigration = typeof rawSetting.darkMode === "boolean";
-  if (!needsSchemaMigration && !needsThemeMigration) return true;
+  const needsLocalMigration = needsLocalOnlyMigration(rawSetting);
+  if (!needsSchemaMigration && !needsThemeMigration && !needsLocalMigration) {
+    return true;
+  }
 
   try {
     let nextSetting = rawSetting;
@@ -619,6 +650,9 @@ export const runDataMigration = async () => {
         ...nextSetting,
         darkMode: rawSetting.darkMode ? "dark" : "light",
       };
+    }
+    if (needsLocalMigration) {
+      nextSetting = mergeSettingWithDefault(nextSetting);
     }
     await setObj(STOKEY_SETTING, nextSetting);
     kissLog(`Migration to V${CURRENT_SETTINGS_VERSION} completed.`);
