@@ -22,6 +22,12 @@ import { trySyncRules } from "./sync";
 import { kissLog } from "./log";
 import { splitSelectorList } from "./selectorList";
 
+const isAllowedLocalApiSlug = (apiSlug) =>
+  typeof apiSlug === "string" &&
+  OPT_ALL_TRANS_TYPES.some(
+    (apiType) => apiSlug === apiType || apiSlug.startsWith(`${apiType}_`)
+  );
+
 /**
  * 差分合并 CSS 选择器。
  * 支持用户使用 “+” 号前缀在默认/基准选择器上追加自定义选择器，
@@ -392,7 +398,7 @@ export const checkRules = (rules) => {
         injectJs: type(injectJs) === "string" ? injectJs : "",
         injectCss: type(injectCss) === "string" ? injectCss : "",
         apiSlug:
-          apiSlug === GLOBAL_KEY || OPT_ALL_TRANS_TYPES.includes(apiSlug)
+          apiSlug === GLOBAL_KEY || isAllowedLocalApiSlug(apiSlug)
             ? apiSlug
             : OPT_TRANS_TRANSLATEGEMMA,
         fromLang: matchValue([GLOBAL_KEY, ...fromLangs], fromLang),
