@@ -67,6 +67,63 @@ function encodeWav(samples, sampleRate = TARGET_SAMPLE_RATE) {
   return new Blob([buffer], { type: "audio/wav" });
 }
 
+const ASR_LANGUAGE_CODES = new Map([
+  ["chinese", "zh"],
+  ["english", "en"],
+  ["cantonese", "yue"],
+  ["arabic", "ar"],
+  ["german", "de"],
+  ["french", "fr"],
+  ["spanish", "es"],
+  ["portuguese", "pt"],
+  ["indonesian", "id"],
+  ["italian", "it"],
+  ["korean", "ko"],
+  ["russian", "ru"],
+  ["thai", "th"],
+  ["vietnamese", "vi"],
+  ["japanese", "ja"],
+  ["turkish", "tr"],
+  ["hindi", "hi"],
+  ["malay", "ms"],
+  ["dutch", "nl"],
+  ["swedish", "sv"],
+  ["danish", "da"],
+  ["finnish", "fi"],
+  ["polish", "pl"],
+  ["czech", "cs"],
+  ["filipino", "fil"],
+  ["persian", "fa"],
+  ["greek", "el"],
+  ["hungarian", "hu"],
+  ["macedonian", "mk"],
+  ["romanian", "ro"],
+]);
+
+function normalizeAsrLanguage(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  if (ASR_LANGUAGE_CODES.has(lower)) return ASR_LANGUAGE_CODES.get(lower);
+  if (/^[a-z]{2,3}(?:-[a-z0-9]+)?$/i.test(raw)) return lower;
+  return "";
+}
+
+function parseAsrResponse(json) {
+  const rawText = String(json?.text || json?.content || "").trim();
+  const tagged = rawText.match(
+    /^language\s+([^<\n]+)<asr_text>([\s\S]*)$/i
+  );
+  const languageName = String(
+    json?.language || tagged?.[1] || ""
+  ).trim();
+  return {
+    text: String(tagged?.[2] ?? rawText).trim(),
+    detectedLanguage: normalizeAsrLanguage(languageName),
+    detectedLanguageName: languageName,
+  };
+}
+
 async function transcribe(wav, language) {
   const form = new FormData();
   form.append("file", wav, "live.wav");
@@ -83,8 +140,7 @@ async function transcribe(wav, language) {
     const body = await response.text().catch(() => "");
     throw new Error(`ASR HTTP ${response.status}: ${body.slice(0, 300)}`);
   }
-  const json = await response.json();
-  return String(json?.text || json?.content || "").trim();
+  return parseAsrResponse(await response.json());
 }
 
 async function processQueue(current) {
@@ -94,13 +150,15 @@ async function processQueue(current) {
     while (current.queue.length && session === current) {
       const item = current.queue.shift();
       try {
-        const text = await transcribe(item.wav, current.language);
-        if (text && session === current) {
+        const result = await transcribe(item.wav, current.language);
+        if (result.text && session === current) {
           await browser.runtime.sendMessage({
             action: MSG_LOCAL_ASR_RESULT,
             args: {
               tabId: current.tabId,
-              text,
+              text: result.text,
+              detectedLanguage: result.detectedLanguage,
+              detectedLanguageName: result.detectedLanguageName,
               startedAt: item.startedAt,
               endedAt: item.endedAt,
               final: true,
