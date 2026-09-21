@@ -22,6 +22,7 @@ import {
   OPT_TRANS_GEMINI_2,
   OPT_TRANS_ALIYUNBAILIAN,
   OPT_TRANS_MICROSOFT,
+  OPT_TRANS_TRANSLATEGEMMA,
   OPT_TRANS_SILICONFLOW,
   OPT_TRANS_OPENAI,
   OPT_TRANS_OPENCODEGO,
@@ -33,11 +34,11 @@ import {
   OPT_TRANS_ZAI,
 } from "./api";
 
-test("uses Microsoft as the fallback default API", () => {
-  expect(DEFAULT_API_TYPE).toBe(OPT_TRANS_MICROSOFT);
+test("uses TranslateGemma as the fallback default API", () => {
+  expect(DEFAULT_API_TYPE).toBe(OPT_TRANS_TRANSLATEGEMMA);
 });
 
-test("includes Microsoft in the built-in API list", () => {
+test("retains Microsoft only in the compatibility provider catalog", () => {
   expect(
     DEFAULT_API_LIST.some((api) => api.apiType === OPT_TRANS_MICROSOFT)
   ).toBe(true);
