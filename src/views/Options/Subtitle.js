@@ -479,6 +479,7 @@ export default function SubtitleSetting() {
     showList = OPT_ENHANCE_MOBILE_OFF,
     skipAd = false,
     aiContextSlug = "-",
+    localAiEngine = "gemma4",
     localAiChunkMs = 2200,
     localAiOverlapMs = 300,
     localAiLanguage = "auto",
@@ -822,10 +823,33 @@ export default function SubtitleSetting() {
         >
           <SettingsCard>
             <SettingsRow
+              label={i18n("settings_local_ai_engine", "Local AI engine")}
+              description={i18n(
+                "settings_local_ai_engine_description",
+                "Gemma 4 performs speech recognition and Traditional Chinese translation in one model. Qwen3-ASR keeps the dedicated transcription-only fallback."
+              )}
+            >
+              <SettingsSelect
+                value={localAiEngine}
+                label={i18n("settings_local_ai_engine", "Local AI engine")}
+                onChange={(value) => updateSubtitle({ localAiEngine: value })}
+                options={[
+                  {
+                    value: "gemma4",
+                    label: "Gemma 4 E2B (ASR + translation)",
+                  },
+                  {
+                    value: "qwen3-asr",
+                    label: "Qwen3-ASR 0.6B (transcription only)",
+                  },
+                ]}
+              />
+            </SettingsRow>
+            <SettingsRow
               label={i18n("settings_local_ai_shortcut", "Live caption shortcut")}
               description={i18n(
                 "settings_local_ai_shortcut_description",
-                "Assign a shortcut (for example Alt+L) in chrome://extensions/shortcuts, then use it on a video tab to start or stop local Qwen3-ASR captions. The local ASR server uses port 8082."
+                "Assign a shortcut in chrome://extensions/shortcuts, then use it on a video tab to start or stop local AI captions. Gemma 4 uses port 8083; Qwen3-ASR fallback uses port 8082."
               )}
             >
               <Typography variant="body2" color="text.secondary">
