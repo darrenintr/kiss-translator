@@ -392,7 +392,7 @@ async function startLocalAsrSession(tabId) {
 
   const setting = await getSettingWithDefault();
   const subtitleSetting = setting.subtitleSetting || {};
-  const engine = subtitleSetting.localAiEngine || "gemma4";
+  const engine = subtitleSetting.localAiEngine || "qwen3-asr";
 
   if (engine === "gemma4") {
     await ensureGemma4Backend();
