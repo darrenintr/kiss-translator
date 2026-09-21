@@ -330,8 +330,8 @@ async function startLocalAsrSession(tabId) {
       args: {
         streamId,
         tabId,
-        chunkMs: subtitleSetting.localAiChunkMs ?? 2200,
-        overlapMs: subtitleSetting.localAiOverlapMs ?? 300,
+        chunkMs: subtitleSetting.localAiChunkMs ?? 1000,
+        overlapMs: subtitleSetting.localAiOverlapMs ?? 200,
         language: subtitleSetting.localAiLanguage ?? "auto",
       },
     });
