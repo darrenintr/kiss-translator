@@ -4,6 +4,7 @@ set -euo pipefail
 HOST_NAME="io.github.darrenintr.kiss_translator.translategemma"
 SERVICE_NAME="kiss-translategemma.service"
 ASR_SERVICE_NAME="kiss-qwen3-asr.service"
+GEMMA4_SERVICE_NAME="kiss-gemma4.service"
 LAUNCHER_SERVICE_NAME="kiss-translategemma-launcher.service"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -20,6 +21,10 @@ Optional environment variables:
   ASR_PORT=8082
   ASR_MODEL=/home/darren/llama/Qwen3-ASR-0.6B-Q8_0.gguf
   ASR_MMPROJ=/home/darren/llama/mmproj-Qwen3-ASR-0.6B-Q8_0.gguf
+  GEMMA4_PORT=8083
+  GEMMA4_CONTEXT=8192
+  GEMMA4_MODEL=/home/darren/llama/gemma-4-E2B-it-abliterated.Q4_K_M.gguf
+  GEMMA4_MMPROJ=/home/darren/llama/gemma-4-E2B-it.mmproj-Q8_0.gguf
 
 Example:
   DEVICE=Vulkan0 PARALLEL=4 ./native/install-linux.sh \
@@ -44,6 +49,10 @@ PARALLEL="${PARALLEL:-4}"
 CONTEXT="${CONTEXT:-4096}"
 PORT="${PORT:-8081}"
 ASR_PORT="${ASR_PORT:-8082}"
+GEMMA4_PORT="${GEMMA4_PORT:-8083}"
+GEMMA4_CONTEXT="${GEMMA4_CONTEXT:-8192}"
+GEMMA4_MODEL="${GEMMA4_MODEL:-$HOME/llama/gemma-4-E2B-it-abliterated.Q4_K_M.gguf}"
+GEMMA4_MMPROJ="${GEMMA4_MMPROJ:-$HOME/llama/gemma-4-E2B-it.mmproj-Q8_0.gguf}"
 
 if [[ ! "$EXTENSION_ID" =~ ^[a-p]{32}$ ]]; then
   echo "Error: '$EXTENSION_ID' does not look like a Chrome extension ID." >&2
@@ -51,7 +60,7 @@ if [[ ! "$EXTENSION_ID" =~ ^[a-p]{32}$ ]]; then
   exit 2
 fi
 
-for file in "$MODEL_PATH" "$ASR_MODEL" "$ASR_MMPROJ"; do
+for file in "$MODEL_PATH" "$ASR_MODEL" "$ASR_MMPROJ" "$GEMMA4_MODEL" "$GEMMA4_MMPROJ"; do
   if [[ ! -f "$file" ]]; then
     echo "Error: model file not found: $file" >&2
     exit 1
@@ -75,6 +84,7 @@ LAUNCHER_PATH="$HOST_DIR/translategemma-launcher.py"
 SYSTEMD_DIR="$HOME/.config/systemd/user"
 SERVICE_PATH="$SYSTEMD_DIR/$SERVICE_NAME"
 ASR_SERVICE_PATH="$SYSTEMD_DIR/$ASR_SERVICE_NAME"
+GEMMA4_SERVICE_PATH="$SYSTEMD_DIR/$GEMMA4_SERVICE_NAME"
 LAUNCHER_SERVICE_PATH="$SYSTEMD_DIR/$LAUNCHER_SERVICE_NAME"
 
 mkdir -p "$HOST_DIR" "$SYSTEMD_DIR"
@@ -111,6 +121,21 @@ RestartSec=2
 WantedBy=default.target
 EOF
 
+cat > "$GEMMA4_SERVICE_PATH" <<EOF
+[Unit]
+Description=KISS Translator local Gemma 4 multimodal llama.cpp server
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=$LLAMA_SERVER -m "$GEMMA4_MODEL" --mmproj "$GEMMA4_MMPROJ" --host 127.0.0.1 --port $GEMMA4_PORT --device $DEVICE -ngl all -c $GEMMA4_CONTEXT --parallel 1 --jinja --reasoning off
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target
+EOF
+
 cat > "$LAUNCHER_SERVICE_PATH" <<EOF
 [Unit]
 Description=KISS Translator local AI localhost launcher
@@ -130,6 +155,7 @@ systemctl --user daemon-reload
 # Heavy model services stay disabled and start only on demand.
 systemctl --user disable "$SERVICE_NAME" >/dev/null 2>&1 || true
 systemctl --user disable "$ASR_SERVICE_NAME" >/dev/null 2>&1 || true
+systemctl --user disable "$GEMMA4_SERVICE_NAME" >/dev/null 2>&1 || true
 # The lightweight localhost launcher stays enabled for sandboxed browsers.
 systemctl --user enable --now "$LAUNCHER_SERVICE_NAME"
 
@@ -164,10 +190,14 @@ echo "  ASR model:       $ASR_MODEL"
 echo "  ASR mmproj:      $ASR_MMPROJ"
 echo "  ASR port:        $ASR_PORT"
 echo "  ASR service:     $ASR_SERVICE_PATH"
+echo "  Gemma 4 model:   $GEMMA4_MODEL"
+echo "  Gemma 4 mmproj:  $GEMMA4_MMPROJ"
+echo "  Gemma 4 port:    $GEMMA4_PORT"
+echo "  Gemma 4 service: $GEMMA4_SERVICE_PATH"
 echo "  device:          $DEVICE"
 echo "  launcher:        $LAUNCHER_SERVICE_PATH"
 echo
 echo "The heavy llama.cpp services are NOT enabled at login."
-echo "The lightweight launcher on 127.0.0.1:8765 starts either backend on demand."
+echo "The lightweight launcher on 127.0.0.1:8765 starts the selected backend on demand."
 echo
 echo "Now rebuild/reload the extension."
