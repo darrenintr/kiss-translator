@@ -38,6 +38,12 @@ describe("translation box defaults", () => {
     expect(DEFAULT_TRANBOX_SETTING.skipLangs).toEqual([]);
   });
 
+  test("uses low-latency local ASR defaults", () => {
+    expect(DEFAULT_SUBTITLE_SETTING.localAiChunkMs).toBe(1000);
+    expect(DEFAULT_SUBTITLE_SETTING.localAiOverlapMs).toBe(200);
+    expect(DEFAULT_SUBTITLE_SETTING.localAiLanguage).toBe("auto");
+  });
+
   test("does not remember the subtitle position by default", () => {
     expect(DEFAULT_SUBTITLE_SETTING.rememberPosition).toBe(false);
     expect(DEFAULT_SUBTITLE_SETTING.positionRatio).toBe(0.05);
