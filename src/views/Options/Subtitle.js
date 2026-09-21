@@ -479,7 +479,7 @@ export default function SubtitleSetting() {
     showList = OPT_ENHANCE_MOBILE_OFF,
     skipAd = false,
     aiContextSlug = "-",
-    localAiEngine = "gemma4",
+    localAiEngine = "qwen3-asr",
     localAiChunkMs = 2200,
     localAiOverlapMs = 300,
     localAiLanguage = "auto",
@@ -826,7 +826,7 @@ export default function SubtitleSetting() {
               label={i18n("settings_local_ai_engine", "Local AI engine")}
               description={i18n(
                 "settings_local_ai_engine_description",
-                "Gemma 4 performs speech recognition and Traditional Chinese translation in one model. Qwen3-ASR keeps the dedicated transcription-only fallback."
+                "Qwen3-ASR is the stable speech-to-text engine. Gemma 4 audio remains available for experimental one-model transcription and translation."
               )}
             >
               <SettingsSelect
@@ -835,12 +835,12 @@ export default function SubtitleSetting() {
                 onChange={(value) => updateSubtitle({ localAiEngine: value })}
                 options={[
                   {
-                    value: "gemma4",
-                    label: "Gemma 4 E2B (ASR + translation)",
+                    value: "qwen3-asr",
+                    label: "Qwen3-ASR 0.6B (recommended STT)",
                   },
                   {
-                    value: "qwen3-asr",
-                    label: "Qwen3-ASR 0.6B (transcription only)",
+                    value: "gemma4",
+                    label: "Gemma 4 E2B (experimental audio)",
                   },
                 ]}
               />
