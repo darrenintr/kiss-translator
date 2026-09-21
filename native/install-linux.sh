@@ -88,7 +88,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=$LLAMA_SERVER -m "$MODEL_PATH" --host 127.0.0.1 --port $PORT --device $DEVICE -ngl all -c $CONTEXT --parallel $PARALLEL --no-jinja
+ExecStart=$LLAMA_SERVER -m "$MODEL_PATH" --host 127.0.0.1 --port $PORT --device $DEVICE -ngl all -c $CONTEXT --parallel $PARALLEL --flash-attn on --no-jinja
 Restart=on-failure
 RestartSec=2
 
