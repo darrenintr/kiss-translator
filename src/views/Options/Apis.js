@@ -59,6 +59,7 @@ import {
   OPT_TRANS_BUILTINAI,
   OPT_TRANS_QWENMT,
   OPT_TRANS_TRANSLATEGEMMA,
+  OPT_TRANS_GEMMA4,
   OPT_TRANS_YANDEX,
   OPT_TRANS_OPENROUTER,
   OPT_TRANS_GEMINI,
@@ -830,7 +831,7 @@ function ApiFields({ apiSlug, deleteApi, copyApi, onCollapse, onDirtyChange }) {
                 apiType === OPT_TRANS_DEEPLX ? i18n("mulkeys_help") : ""
               }
             />
-            {apiType !== OPT_TRANS_TRANSLATEGEMMA && (
+            {![OPT_TRANS_TRANSLATEGEMMA, OPT_TRANS_GEMMA4].includes(apiType) && (
               <SensitiveTextField
                 size="small"
                 label={"Key"}
@@ -1764,7 +1765,7 @@ export default function Apis() {
     () =>
       OPT_ALL_TRANS_TYPES.map((type) => ({
         type,
-        label: type,
+        label: type === OPT_TRANS_GEMMA4 ? "Gemma 4 E2B" : type,
       })),
     []
   );
