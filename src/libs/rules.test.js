@@ -3,6 +3,7 @@ import { getDisabledSubRules, getRulesWithDefault, saveEdit } from "./storage";
 import { loadOrFetchSubRules } from "./subRules";
 import { GLOBLA_RULE } from "../config/rules";
 import {
+  OPT_TRANS_GEMMA4,
   OPT_TRANS_TRANSLATEGEMMA,
   OPT_TRANS_TENCENT,
 } from "../config/api";
@@ -38,6 +39,15 @@ test("normalizes imported remote-provider rules to TranslateGemma", () => {
   ]);
 
   expect(rule.apiSlug).toBe(OPT_TRANS_TRANSLATEGEMMA);
+  expect(rule.toLang).toBe("zh-TW");
+});
+
+test("preserves Gemma 4 in imported local-provider rules", () => {
+  const [rule] = checkRules([
+    { pattern: "example.com", apiSlug: OPT_TRANS_GEMMA4, toLang: "zh-TW" },
+  ]);
+
+  expect(rule.apiSlug).toBe(OPT_TRANS_GEMMA4);
   expect(rule.toLang).toBe("zh-TW");
 });
 
