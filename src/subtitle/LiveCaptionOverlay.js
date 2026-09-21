@@ -62,6 +62,7 @@ function ensureOverlay() {
     borderRadius: "10px",
     padding: "8px 14px",
     backdropFilter: "blur(6px)",
+    whiteSpace: "pre-line",
     display: "none",
   });
   document.documentElement.appendChild(root);
@@ -78,8 +79,9 @@ export function startLiveCaptionOverlay() {
       const raw = String(args?.text || "").trim();
       if (!raw) return;
       const text = commonPrefixSuffixTrim(lastText, raw) || raw;
+      const translation = String(args?.translation || "").trim();
       lastText = raw;
-      root.textContent = text;
+      root.textContent = translation ? `${text}\n${translation}` : text;
       root.style.display = "block";
       clearTimeout(hideTimer);
       hideTimer = setTimeout(() => {
@@ -90,7 +92,10 @@ export function startLiveCaptionOverlay() {
 
     if (action === MSG_LOCAL_ASR_STATE) {
       if (args?.active) {
-        root.textContent = "Local AI captions starting…";
+        root.textContent =
+          args?.engine === "gemma4"
+            ? "Gemma 4 captions starting…"
+            : "Local AI captions starting…";
         root.style.display = "block";
       } else {
         root.style.display = "none";
