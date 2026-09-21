@@ -10,6 +10,8 @@ SERVICE_NAME = "kiss-translategemma.service"
 HEALTH_URL = "http://127.0.0.1:8081/health"
 ASR_SERVICE_NAME = "kiss-qwen3-asr.service"
 ASR_HEALTH_URL = "http://127.0.0.1:8082/health"
+GEMMA4_SERVICE_NAME = "kiss-gemma4.service"
+GEMMA4_HEALTH_URL = "http://127.0.0.1:8083/health"
 START_TIMEOUT_SECONDS = 45
 
 
@@ -91,6 +93,11 @@ def main():
             return
         if action == "ensure_asr_started":
             write_message(ensure_service_started(ASR_SERVICE_NAME, ASR_HEALTH_URL))
+            return
+        if action == "ensure_gemma4_started":
+            write_message(
+                ensure_service_started(GEMMA4_SERVICE_NAME, GEMMA4_HEALTH_URL)
+            )
             return
 
         write_message({"ok": False, "error": "unsupported action"})
