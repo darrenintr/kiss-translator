@@ -203,7 +203,7 @@ export const DEFAULT_SUBTITLE_SETTING = {
   rememberPosition: false, // 是否记住字幕拖动后的相对位置
   positionRatio: 0.05, // 字幕底边相对播放器高度的比例
   aiContextSlug: "-", // 是否为字幕启用智能上下文，以获取更好的代词翻译效果
-  localAiEngine: "gemma4", // gemma4 = unified ASR + translation; qwen3-asr = dedicated ASR fallback
+  localAiEngine: "qwen3-asr", // dedicated ASR is the stable default; Gemma 4 audio remains experimental
   localAiChunkMs: 2200, // 本地语音模型每次处理的音频长度
   localAiOverlapMs: 300, // 相邻实时字幕音频块重叠长度，减少断词
   localAiLanguage: "auto", // auto / yue / zh / ja / en
