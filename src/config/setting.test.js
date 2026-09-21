@@ -38,6 +38,11 @@ describe("translation box defaults", () => {
     expect(DEFAULT_TRANBOX_SETTING.skipLangs).toEqual([]);
   });
 
+  test("uses Gemma 4 as the default local live-caption engine", () => {
+    expect(DEFAULT_SUBTITLE_SETTING.localAiEngine).toBe("gemma4");
+    expect(DEFAULT_SUBTITLE_SETTING.localAiLanguage).toBe("auto");
+  });
+
   test("does not remember the subtitle position by default", () => {
     expect(DEFAULT_SUBTITLE_SETTING.rememberPosition).toBe(false);
     expect(DEFAULT_SUBTITLE_SETTING.positionRatio).toBe(0.05);
