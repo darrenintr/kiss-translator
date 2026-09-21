@@ -617,7 +617,7 @@ function ApiFields({ apiSlug, deleteApi, copyApi, onCollapse, onDirtyChange }) {
     const requestKey = `${apiSlug}|${modelListUrl}|${key}`;
     if (
       !modelListUrl?.trim() ||
-      !key?.trim() ||
+      (!key?.trim() && apiType !== OPT_TRANS_GEMMA4) ||
       requestedModelListKeyRef.current === requestKey ||
       modelListStatus === "loading"
     ) {
