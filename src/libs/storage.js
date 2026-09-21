@@ -524,21 +524,52 @@ const writeSettingBackupBeforeV2 = (setting) =>
 const normalizeTraditionalTarget = (lang, fallback) =>
   lang === "zh-CN" ? "zh-TW" : lang || fallback;
 
+const getLocalApiType = (api) => {
+  const localTypes = new Set(DEFAULT_LOCAL_API_LIST.map((item) => item.apiType));
+  if (localTypes.has(api?.apiType)) return api.apiType;
+  if (localTypes.has(api?.apiSlug)) return api.apiSlug;
+  return "";
+};
+
+const normalizeLocalApis = (transApis = []) => {
+  const storedApis = Array.isArray(transApis) ? transApis : [];
+  const localApis = storedApis
+    .map((api) => {
+      const apiType = getLocalApiType(api);
+      if (!apiType) return null;
+      const defaults = DEFAULT_LOCAL_API_LIST.find(
+        (item) => item.apiType === apiType
+      );
+      return {
+        ...defaults,
+        ...api,
+        apiType,
+        apiSlug: api?.apiSlug || apiType,
+        apiName: api?.apiName || defaults?.apiName || apiType,
+      };
+    })
+    .filter(Boolean);
+
+  for (const defaults of DEFAULT_LOCAL_API_LIST) {
+    const hasCanonical = localApis.some(
+      (api) => api.apiSlug === defaults.apiSlug
+    );
+    if (!hasCanonical) {
+      localApis.push({ ...defaults });
+    }
+  }
+
+  return normalizeApiThinkingSettings(localApis);
+};
+
 const mergeSettingWithDefault = (setting) => {
-  const storedTranslateGemma = Array.isArray(setting?.transApis)
-    ? setting.transApis.find(
-        (api) =>
-          api?.apiType === OPT_TRANS_TRANSLATEGEMMA ||
-          api?.apiSlug === OPT_TRANS_TRANSLATEGEMMA
-      )
-    : null;
-  const localApi = {
-    ...DEFAULT_LOCAL_API_LIST[0],
-    ...(storedTranslateGemma || {}),
-    apiType: OPT_TRANS_TRANSLATEGEMMA,
-    apiSlug: OPT_TRANS_TRANSLATEGEMMA,
-    apiName: storedTranslateGemma?.apiName || OPT_TRANS_TRANSLATEGEMMA,
-  };
+  const localApis = normalizeLocalApis(setting?.transApis);
+  const localSlugs = new Set(localApis.map((api) => api.apiSlug));
+  const normalizeLocalSlug = (slug, fallback = OPT_TRANS_TRANSLATEGEMMA) =>
+    localSlugs.has(slug) ? slug : fallback;
+  const storedTranboxSlugs = Array.isArray(setting?.tranboxSetting?.apiSlugs)
+    ? setting.tranboxSetting.apiSlugs.filter((slug) => localSlugs.has(slug))
+    : [];
 
   const mergedSetting = {
     ...DEFAULT_SETTING,
@@ -548,11 +579,11 @@ const mergeSettingWithDefault = (setting) => {
         ? "zh_TW"
         : setting?.uiLang || DEFAULT_SETTING.uiLang,
     langDetector: "-",
-    transApis: normalizeApiThinkingSettings([localApi]),
+    transApis: localApis,
     inputRule: {
       ...DEFAULT_INPUT_RULE,
       ...(setting?.inputRule || {}),
-      apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+      apiSlug: normalizeLocalSlug(setting?.inputRule?.apiSlug),
       toLang: normalizeTraditionalTarget(
         setting?.inputRule?.toLang,
         DEFAULT_INPUT_RULE.toLang
@@ -561,7 +592,9 @@ const mergeSettingWithDefault = (setting) => {
     tranboxSetting: {
       ...DEFAULT_TRANBOX_SETTING,
       ...(setting?.tranboxSetting || {}),
-      apiSlugs: [OPT_TRANS_TRANSLATEGEMMA],
+      apiSlugs: storedTranboxSlugs.length
+        ? storedTranboxSlugs
+        : [OPT_TRANS_TRANSLATEGEMMA],
       toLang: normalizeTraditionalTarget(
         setting?.tranboxSetting?.toLang,
         DEFAULT_TRANBOX_SETTING.toLang
@@ -570,7 +603,7 @@ const mergeSettingWithDefault = (setting) => {
     subtitleSetting: {
       ...DEFAULT_SUBTITLE_SETTING,
       ...(setting?.subtitleSetting || {}),
-      apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+      apiSlug: normalizeLocalSlug(setting?.subtitleSetting?.apiSlug),
       toLang: normalizeTraditionalTarget(
         setting?.subtitleSetting?.toLang,
         DEFAULT_SUBTITLE_SETTING.toLang
@@ -582,39 +615,54 @@ const mergeSettingWithDefault = (setting) => {
       apiSlug:
         setting?.mouseHoverSetting?.apiSlug === GLOBAL_KEY
           ? GLOBAL_KEY
-          : OPT_TRANS_TRANSLATEGEMMA,
+          : normalizeLocalSlug(setting?.mouseHoverSetting?.apiSlug),
     },
     version: setting?.version ?? DEFAULT_SETTING.version,
   };
 
   return mergedSetting;
 };
+
 const needsLocalOnlyMigration = (setting) => {
   if (!setting || typeof setting !== "object") return true;
+
   const transApis = Array.isArray(setting.transApis) ? setting.transApis : [];
-  const onlyTranslateGemma =
-    transApis.length === 1 &&
-    (transApis[0]?.apiType === OPT_TRANS_TRANSLATEGEMMA ||
-      transApis[0]?.apiSlug === OPT_TRANS_TRANSLATEGEMMA);
+  const canonicalLocalApisPresent = DEFAULT_LOCAL_API_LIST.every((defaults) =>
+    transApis.some(
+      (api) =>
+        api?.apiSlug === defaults.apiSlug && getLocalApiType(api) === defaults.apiType
+    )
+  );
+  const containsOnlyLocalApis = transApis.every((api) => Boolean(getLocalApiType(api)));
+  const localSlugs = new Set(
+    transApis.filter((api) => getLocalApiType(api)).map((api) => api.apiSlug)
+  );
   const hasLegacySimplifiedTarget = [
     setting?.inputRule?.toLang,
     setting?.tranboxSetting?.toLang,
     setting?.subtitleSetting?.toLang,
   ].includes("zh-CN");
+  const hasInvalidEntryPoint =
+    !localSlugs.has(setting?.inputRule?.apiSlug) ||
+    !localSlugs.has(setting?.subtitleSetting?.apiSlug) ||
+    !(
+      Array.isArray(setting?.tranboxSetting?.apiSlugs) &&
+      setting.tranboxSetting.apiSlugs.length > 0 &&
+      setting.tranboxSetting.apiSlugs.every((slug) => localSlugs.has(slug))
+    ) ||
+    !(
+      setting?.mouseHoverSetting?.apiSlug === GLOBAL_KEY ||
+      localSlugs.has(setting?.mouseHoverSetting?.apiSlug)
+    );
 
   return (
-    !onlyTranslateGemma ||
+    !canonicalLocalApisPresent ||
+    !containsOnlyLocalApis ||
     setting.uiLang === "zh" ||
     setting.uiLang === "zh-CN" ||
     setting.langDetector !== "-" ||
     hasLegacySimplifiedTarget ||
-    setting?.inputRule?.apiSlug !== OPT_TRANS_TRANSLATEGEMMA ||
-    !(
-      Array.isArray(setting?.tranboxSetting?.apiSlugs) &&
-      setting.tranboxSetting.apiSlugs.length === 1 &&
-      setting.tranboxSetting.apiSlugs[0] === OPT_TRANS_TRANSLATEGEMMA
-    ) ||
-    setting?.subtitleSetting?.apiSlug !== OPT_TRANS_TRANSLATEGEMMA
+    hasInvalidEntryPoint
   );
 };
 
@@ -698,10 +746,14 @@ export const getRulesOld = () => getObj(STOKEY_RULES_OLD);
 export const getRulesWithDefault = async () => {
   const rules = (await getRules()) || DEFAULT_RULES;
   if (!Array.isArray(rules)) return DEFAULT_RULES;
+  const setting = await getSettingWithDefault();
+  const localSlugs = new Set((setting?.transApis || []).map((api) => api.apiSlug));
   return rules.map((rule) => ({
     ...rule,
     apiSlug:
-      rule?.apiSlug === GLOBAL_KEY ? GLOBAL_KEY : OPT_TRANS_TRANSLATEGEMMA,
+      rule?.apiSlug === GLOBAL_KEY || localSlugs.has(rule?.apiSlug)
+        ? rule.apiSlug
+        : OPT_TRANS_TRANSLATEGEMMA,
     toLang: rule?.toLang === "zh-CN" ? "zh-TW" : rule?.toLang,
   }));
 };
