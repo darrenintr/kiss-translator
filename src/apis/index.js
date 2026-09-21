@@ -911,7 +911,10 @@ export const apiTranslate = async ({
   if (Array.isArray(translation)) {
     [trText, srLang = ""] = translation;
     if (srLang) {
-      srCode = OPT_LANGS_TO_CODE[apiType].get(srLang) || "";
+      const codeMap =
+        OPT_LANGS_TO_CODE[apiType] ||
+        new Map(Array.from(OPT_LANGS_SPEC_DEFAULT.entries()).map(([code, name]) => [name, code]));
+      srCode = codeMap.get(srLang) || "";
     }
   } else if (typeof translation === "string") {
     trText = translation;
