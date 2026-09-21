@@ -60,12 +60,18 @@ if [[ ! "$EXTENSION_ID" =~ ^[a-p]{32}$ ]]; then
   exit 2
 fi
 
-for file in "$MODEL_PATH" "$ASR_MODEL" "$ASR_MMPROJ" "$GEMMA4_MODEL" "$GEMMA4_MMPROJ"; do
+for file in "$MODEL_PATH" "$GEMMA4_MODEL" "$GEMMA4_MMPROJ"; do
   if [[ ! -f "$file" ]]; then
     echo "Error: model file not found: $file" >&2
     exit 1
   fi
 done
+
+HAS_QWEN_ASR=1
+if [[ ! -f "$ASR_MODEL" || ! -f "$ASR_MMPROJ" ]]; then
+  HAS_QWEN_ASR=0
+  echo "Qwen3-ASR fallback files not found; installing Gemma 4 captions without the Qwen fallback." >&2
+fi
 
 LLAMA_SERVER="$(command -v llama-server || true)"
 if [[ -z "$LLAMA_SERVER" ]]; then
@@ -106,7 +112,8 @@ RestartSec=2
 WantedBy=default.target
 EOF
 
-cat > "$ASR_SERVICE_PATH" <<EOF
+if [[ "$HAS_QWEN_ASR" -eq 1 ]]; then
+  cat > "$ASR_SERVICE_PATH" <<EOF
 [Unit]
 Description=KISS Translator local Qwen3-ASR llama.cpp server
 After=graphical-session.target
@@ -120,6 +127,9 @@ RestartSec=2
 [Install]
 WantedBy=default.target
 EOF
+else
+  rm -f "$ASR_SERVICE_PATH"
+fi
 
 cat > "$GEMMA4_SERVICE_PATH" <<EOF
 [Unit]
@@ -154,7 +164,9 @@ EOF
 systemctl --user daemon-reload
 # Heavy model services stay disabled and start only on demand.
 systemctl --user disable "$SERVICE_NAME" >/dev/null 2>&1 || true
-systemctl --user disable "$ASR_SERVICE_NAME" >/dev/null 2>&1 || true
+if [[ "$HAS_QWEN_ASR" -eq 1 ]]; then
+  systemctl --user disable "$ASR_SERVICE_NAME" >/dev/null 2>&1 || true
+fi
 systemctl --user disable "$GEMMA4_SERVICE_NAME" >/dev/null 2>&1 || true
 # The lightweight localhost launcher stays enabled for sandboxed browsers.
 systemctl --user enable --now "$LAUNCHER_SERVICE_NAME"
@@ -186,10 +198,14 @@ echo "  llama-server: $LLAMA_SERVER"
 echo "  Translate model: $MODEL_PATH"
 echo "  Translate port:  $PORT"
 echo "  Translate service: $SERVICE_PATH"
-echo "  ASR model:       $ASR_MODEL"
-echo "  ASR mmproj:      $ASR_MMPROJ"
-echo "  ASR port:        $ASR_PORT"
-echo "  ASR service:     $ASR_SERVICE_PATH"
+if [[ "$HAS_QWEN_ASR" -eq 1 ]]; then
+  echo "  ASR model:       $ASR_MODEL"
+  echo "  ASR mmproj:      $ASR_MMPROJ"
+  echo "  ASR port:        $ASR_PORT"
+  echo "  ASR service:     $ASR_SERVICE_PATH"
+else
+  echo "  Qwen3-ASR:       not installed (optional fallback)"
+fi
 echo "  Gemma 4 model:   $GEMMA4_MODEL"
 echo "  Gemma 4 mmproj:  $GEMMA4_MMPROJ"
 echo "  Gemma 4 port:    $GEMMA4_PORT"
