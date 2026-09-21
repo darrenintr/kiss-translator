@@ -10,6 +10,7 @@ import {
   OPT_TRANS_OPENROUTER,
   OPT_TRANS_GEMINI,
   OPT_TRANS_GEMINI_2,
+  OPT_TRANS_GEMMA4,
   OPT_TRANS_QWENMT,
   OPT_TRANS_YANDEX,
   OPT_TRANS_YANDEXFREE,
@@ -512,6 +513,25 @@ describe("Apis ordering and master-detail layout", () => {
     view.unmount();
   });
 
+  test("offers Gemma 4 E2B in the local service add menu", async () => {
+    const view = await renderApis(createApi());
+    const addButton = view.container.querySelector("#add-api-button");
+
+    await act(async () => {
+      Simulate.click(addButton);
+    });
+
+    const menu = document.body.querySelector("#add-api-menu");
+    const menuTexts = Array.from(menu.querySelectorAll('[role="menuitem"]')).map(
+      (item) => item.textContent
+    );
+
+    expect(menuTexts.some((text) => text.includes("TranslateGemma"))).toBe(true);
+    expect(menuTexts.some((text) => text.includes("Gemma 4 E2B"))).toBe(true);
+
+    view.unmount();
+  });
+
   test.each(["Escape", "backdrop click", "service selection"])(
     "removes the themed add menu and restores interaction after %s",
     async (closeMethod) => {
@@ -589,6 +609,23 @@ describe("Apis conditional option groups", () => {
         (item) => !item.firstElementChild && !item.textContent.trim()
       )
     ).toHaveLength(0);
+
+    view.unmount();
+  });
+
+  test("does not ask for an API key for local Gemma 4", async () => {
+    const gemma4 = DEFAULT_API_LIST.find(
+      (api) => api.apiType === OPT_TRANS_GEMMA4
+    );
+    const view = await renderApis(gemma4);
+
+    expect(view.container.querySelector('input[name="key"]')).toBeNull();
+    expect(getInput(view.container, "url").value).toBe(
+      "http://127.0.0.1:8083/v1/chat/completions"
+    );
+    expect(getInput(view.container, "model").value).toBe(
+      "gemma-4-E2B-it-abliterated.Q4_K_M.gguf"
+    );
 
     view.unmount();
   });
