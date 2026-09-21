@@ -543,7 +543,10 @@ const mergeSettingWithDefault = (setting) => {
   const mergedSetting = {
     ...DEFAULT_SETTING,
     ...(setting || {}),
-    uiLang: setting?.uiLang === "zh" ? "zh_TW" : setting?.uiLang || DEFAULT_SETTING.uiLang,
+    uiLang:
+      setting?.uiLang === "zh" || setting?.uiLang === "zh-CN"
+        ? "zh_TW"
+        : setting?.uiLang || DEFAULT_SETTING.uiLang,
     langDetector: "-",
     transApis: normalizeApiThinkingSettings([localApi]),
     inputRule: {
@@ -602,6 +605,7 @@ const needsLocalOnlyMigration = (setting) => {
   return (
     !onlyTranslateGemma ||
     setting.uiLang === "zh" ||
+    setting.uiLang === "zh-CN" ||
     setting.langDetector !== "-" ||
     hasLegacySimplifiedTarget ||
     setting?.inputRule?.apiSlug !== OPT_TRANS_TRANSLATEGEMMA ||
