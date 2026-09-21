@@ -22,7 +22,7 @@ import {
   CURRENT_SETTINGS_VERSION,
   DEFAULT_TRANBOX_SETTING,
   normalizeApiThinkingSettings,
-  DEFAULT_API_LIST,
+  DEFAULT_LOCAL_API_LIST,
   OPT_TRANS_TRANSLATEGEMMA,
   DEFAULT_INPUT_RULE,
   DEFAULT_SUBTITLE_SETTING,
@@ -533,7 +533,7 @@ const mergeSettingWithDefault = (setting) => {
       )
     : null;
   const localApi = {
-    ...DEFAULT_API_LIST[0],
+    ...DEFAULT_LOCAL_API_LIST[0],
     ...(storedTranslateGemma || {}),
     apiType: OPT_TRANS_TRANSLATEGEMMA,
     apiSlug: OPT_TRANS_TRANSLATEGEMMA,
