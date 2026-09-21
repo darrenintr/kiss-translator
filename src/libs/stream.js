@@ -18,6 +18,7 @@ import {
   OPT_TRANS_OPENROUTER,
   OPT_TRANS_ORCAROUTER,
   OPT_TRANS_OLLAMA,
+  OPT_TRANS_GEMMA4,
   OPT_TRANS_CLAUDE,
   OPT_TRANS_EPHONEAI,
 } from "../config";
@@ -146,6 +147,7 @@ export function getStreamDelta(json, apiType) {
     case OPT_TRANS_OPENROUTER:
     case OPT_TRANS_ORCAROUTER:
     case OPT_TRANS_OLLAMA:
+    case OPT_TRANS_GEMMA4:
     case OPT_TRANS_EPHONEAI:
       // OpenAI 兼容协议的大模型 delta 提取逻辑
       return json.choices?.[0]?.delta?.content || "";
