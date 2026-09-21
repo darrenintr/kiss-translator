@@ -853,6 +853,36 @@ describe("Apis model list", () => {
     view.unmount();
   });
 
+  test("loads the local Gemma 4 model list without an API key", async () => {
+    fetchModelCatalog.mockResolvedValue({
+      models: ["gemma-4-E2B-it-abliterated.Q4_K_M.gguf"],
+      thinkingCapabilities: {},
+    });
+    const gemma4 = DEFAULT_API_LIST.find(
+      (api) => api.apiType === OPT_TRANS_GEMMA4
+    );
+    const view = await renderApis(gemma4);
+    const modelInput = getInput(view.container, "model");
+
+    await act(async () => {
+      Simulate.focus(modelInput);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchModelCatalog).toHaveBeenCalledWith({
+      apiType: OPT_TRANS_GEMMA4,
+      modelListUrl: "http://127.0.0.1:8083/v1/models",
+      key: "",
+      httpTimeout: gemma4.httpTimeout,
+    });
+    expect(modelInput.getAttribute("data-options")).toContain(
+      "gemma-4-E2B-it-abliterated.Q4_K_M.gguf"
+    );
+
+    view.unmount();
+  });
+
   test("does not load model list without url or key", async () => {
     const view = await renderApis(createApi({ key: "" }));
     const modelInput = getInput(view.container, "model");
