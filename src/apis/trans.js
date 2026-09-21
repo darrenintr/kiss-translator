@@ -29,6 +29,7 @@ import {
   OPT_TRANS_CLOUDFLAREAI,
   OPT_TRANS_OLLAMA,
   OPT_TRANS_TRANSLATEGEMMA,
+  OPT_TRANS_GEMMA4,
   OPT_TRANS_OPENROUTER,
   OPT_TRANS_ORCAROUTER,
   OPT_TRANS_CUSTOMIZE,
@@ -1411,6 +1412,7 @@ const genReqFuncs = {
   [OPT_TRANS_CLAUDE]: genClaude,
   [OPT_TRANS_CLOUDFLAREAI]: genCloudflareAI,
   [OPT_TRANS_OLLAMA]: genOllama,
+  [OPT_TRANS_GEMMA4]: genOllama,
   [OPT_TRANS_TRANSLATEGEMMA]: genTranslateGemma,
   [OPT_TRANS_OPENROUTER]: genOpenRouter,
   [OPT_TRANS_ORCAROUTER]: genOrcaRouter,
@@ -1752,6 +1754,7 @@ export const parseTransRes = async (
     case OPT_TRANS_GEMINI_2:
     case OPT_TRANS_OPENROUTER:
     case OPT_TRANS_ORCAROUTER:
+    case OPT_TRANS_GEMMA4:
       modelMsg = res?.choices?.[0]?.message;
       if (history && userMsg) {
         // 成对写入与轮次截断守卫统一内聚在 addPair：空正文/非 assistant role 整对不写
@@ -1860,6 +1863,7 @@ function parseDictRes(res, apiType) {
     case OPT_TRANS_OPENROUTER:
     case OPT_TRANS_ORCAROUTER:
     case OPT_TRANS_OLLAMA:
+    case OPT_TRANS_GEMMA4:
       return res?.choices?.[0]?.message?.content || "";
     case OPT_TRANS_GEMINI:
       return geminiResponseText(res);
