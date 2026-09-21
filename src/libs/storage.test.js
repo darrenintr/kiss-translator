@@ -4,9 +4,9 @@ import {
   SETTINGS_VERSION_V2,
   SETTINGS_VERSION_V3,
   DEFAULT_SUBTITLE_SETTING,
-  OPT_TRANS_DEEPSEEK,
   OPT_TRANS_OPENAI,
   OPT_TRANS_TENCENT,
+  OPT_TRANS_TRANSLATEGEMMA,
 } from "../config";
 import { getSettingWithDefault, runDataMigration } from "./storage";
 
@@ -67,10 +67,17 @@ describe("settings storage migration", () => {
 
     expect(backup).toEqual(oldSetting);
     expect(stored.version).toBe(SETTINGS_VERSION_V3);
-    expect(stored.transApis[0].batchPromptSlug).toMatch(
-      /^prompt_migrated_batch_/
-    );
-    expect(stored.transApis[0]).not.toHaveProperty("systemPrompt");
+    expect(stored.uiLang).toBe("zh_TW");
+    expect(stored.transApis).toHaveLength(1);
+    expect(stored.transApis[0]).toMatchObject({
+      apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+      apiType: OPT_TRANS_TRANSLATEGEMMA,
+    });
+    expect(stored.inputRule.apiSlug).toBe(OPT_TRANS_TRANSLATEGEMMA);
+    expect(stored.tranboxSetting.apiSlugs).toEqual([
+      OPT_TRANS_TRANSLATEGEMMA,
+    ]);
+    expect(stored.subtitleSetting.apiSlug).toBe(OPT_TRANS_TRANSLATEGEMMA);
   });
 
   test.each([
@@ -88,9 +95,16 @@ describe("settings storage migration", () => {
 
       await runDataMigration();
 
-      expect(readStoredJson(STOKEY_SETTING)).toEqual({
-        ...oldSetting,
+      expect(readStoredJson(STOKEY_SETTING)).toMatchObject({
+        version: SETTINGS_VERSION_V3,
         darkMode: expected,
+        uiLang: "en",
+        transApis: [
+          expect.objectContaining({
+            apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+            apiType: OPT_TRANS_TRANSLATEGEMMA,
+          }),
+        ],
       });
       expect(readStoredJson(STOKEY_SETTING_BACKUP_V1_BEFORE_V2)).toBe(null);
     }
@@ -146,10 +160,12 @@ describe("settings storage migration", () => {
     const setting = await getSettingWithDefault();
 
     expect(setting.version).toBe(SETTINGS_VERSION_V3);
-    expect(setting.transApis[0].batchPromptSlug).toMatch(
-      /^prompt_migrated_batch_/
-    );
-    expect(setting.transApis[0]).not.toHaveProperty("systemPrompt");
+    expect(setting.uiLang).toBe("zh_TW");
+    expect(setting.transApis).toHaveLength(1);
+    expect(setting.transApis[0]).toMatchObject({
+      apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+      apiType: OPT_TRANS_TRANSLATEGEMMA,
+    });
   });
 
   test.each([
@@ -221,21 +237,36 @@ describe("settings storage migration", () => {
     });
   });
 
-  test("does not replace explicitly stored Tencent entry points", async () => {
+  test("replaces explicitly stored remote entry points with TranslateGemma", async () => {
     window.localStorage.setItem(
       STOKEY_SETTING,
       JSON.stringify({
         version: SETTINGS_VERSION_V3,
-        inputRule: { apiSlug: OPT_TRANS_TENCENT },
-        tranboxSetting: { apiSlugs: [OPT_TRANS_TENCENT] },
-        subtitleSetting: { apiSlug: OPT_TRANS_TENCENT },
+        inputRule: { apiSlug: OPT_TRANS_TENCENT, toLang: "zh-CN" },
+        tranboxSetting: {
+          apiSlugs: [OPT_TRANS_TENCENT],
+          toLang: "zh-CN",
+        },
+        subtitleSetting: {
+          apiSlug: OPT_TRANS_TENCENT,
+          toLang: "zh-CN",
+        },
       })
     );
 
     await expect(getSettingWithDefault()).resolves.toMatchObject({
-      inputRule: { apiSlug: OPT_TRANS_TENCENT },
-      tranboxSetting: { apiSlugs: [OPT_TRANS_TENCENT] },
-      subtitleSetting: { apiSlug: OPT_TRANS_TENCENT },
+      inputRule: {
+        apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+        toLang: "zh-TW",
+      },
+      tranboxSetting: {
+        apiSlugs: [OPT_TRANS_TRANSLATEGEMMA],
+        toLang: "zh-TW",
+      },
+      subtitleSetting: {
+        apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+        toLang: "zh-TW",
+      },
     });
   });
 
@@ -255,7 +286,7 @@ describe("settings storage migration", () => {
     expect(setting.subtitleSetting.chunkLength).toBe(2000);
   });
 
-  test("normalizes legacy default thinking effort only in the loaded setting", async () => {
+  test("drops a stored remote AI provider from the loaded setting", async () => {
     const storedSetting = {
       version: SETTINGS_VERSION_V3,
       transApis: [
@@ -272,24 +303,23 @@ describe("settings storage migration", () => {
 
     const setting = await getSettingWithDefault();
 
-    expect(setting.transApis[0].thinkingEffort).toBeNull();
+    expect(setting.transApis).toHaveLength(1);
+    expect(setting.transApis[0].apiType).toBe(OPT_TRANS_TRANSLATEGEMMA);
     expect(readStoredJson(STOKEY_SETTING)).toEqual(storedSetting);
   });
 
-  test("normalizes thinking settings for a fresh installation", async () => {
+  test("uses only TranslateGemma for a fresh installation", async () => {
     const setting = await getSettingWithDefault();
-    const deepseek = setting.transApis.find(
-      (api) => api.apiType === OPT_TRANS_DEEPSEEK
-    );
 
-    expect(deepseek).toMatchObject({
-      thinkingMode: "disabled",
-      thinkingEffort: null,
+    expect(setting.transApis).toHaveLength(1);
+    expect(setting.transApis[0]).toMatchObject({
+      apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+      apiType: OPT_TRANS_TRANSLATEGEMMA,
     });
   });
 
   test.each(["none", "minimal", "_default"])(
-    "loads legacy Astra disabled effort %s as low without rewriting storage",
+    "ignores legacy remote thinking effort %s in the loaded setting",
     async (thinkingEffort) => {
       const storedSetting = {
         version: SETTINGS_VERSION_V3,
@@ -308,7 +338,8 @@ describe("settings storage migration", () => {
         JSON.stringify(storedSetting)
       );
       const setting = await getSettingWithDefault();
-      expect(setting.transApis[0].thinkingEffort).toBe("low");
+      expect(setting.transApis).toHaveLength(1);
+      expect(setting.transApis[0].apiType).toBe(OPT_TRANS_TRANSLATEGEMMA);
       expect(readStoredJson(STOKEY_SETTING)).toEqual(storedSetting);
     }
   );
