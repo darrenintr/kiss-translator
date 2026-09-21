@@ -22,6 +22,12 @@ import {
   CURRENT_SETTINGS_VERSION,
   DEFAULT_TRANBOX_SETTING,
   normalizeApiThinkingSettings,
+  DEFAULT_API_LIST,
+  OPT_TRANS_TRANSLATEGEMMA,
+  DEFAULT_INPUT_RULE,
+  DEFAULT_SUBTITLE_SETTING,
+  DEFAULT_MOUSE_HOVER_SETTING,
+  GLOBAL_KEY,
   KV_SETTING_KEY,
   KV_RULES_KEY,
   KV_WORDS_KEY,
@@ -515,22 +521,70 @@ export const getSetting = () => getObj(STOKEY_SETTING);
 export const getSettingOld = () => getObj(STOKEY_SETTING_OLD);
 const writeSettingBackupBeforeV2 = (setting) =>
   setObj(STOKEY_SETTING_BACKUP_V1_BEFORE_V2, setting);
+const normalizeTraditionalTarget = (lang, fallback) =>
+  lang === "zh-CN" ? "zh-TW" : lang || fallback;
+
 const mergeSettingWithDefault = (setting) => {
+  const storedTranslateGemma = Array.isArray(setting?.transApis)
+    ? setting.transApis.find(
+        (api) =>
+          api?.apiType === OPT_TRANS_TRANSLATEGEMMA ||
+          api?.apiSlug === OPT_TRANS_TRANSLATEGEMMA
+      )
+    : null;
+  const localApi = {
+    ...DEFAULT_API_LIST[0],
+    ...(storedTranslateGemma || {}),
+    apiType: OPT_TRANS_TRANSLATEGEMMA,
+    apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+    apiName: storedTranslateGemma?.apiName || OPT_TRANS_TRANSLATEGEMMA,
+  };
+
   const mergedSetting = {
     ...DEFAULT_SETTING,
     ...(setting || {}),
+    uiLang: setting?.uiLang === "zh" ? "zh_TW" : setting?.uiLang || DEFAULT_SETTING.uiLang,
+    langDetector: "-",
+    transApis: normalizeApiThinkingSettings([localApi]),
+    inputRule: {
+      ...DEFAULT_INPUT_RULE,
+      ...(setting?.inputRule || {}),
+      apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+      toLang: normalizeTraditionalTarget(
+        setting?.inputRule?.toLang,
+        DEFAULT_INPUT_RULE.toLang
+      ),
+    },
     tranboxSetting: {
       ...DEFAULT_TRANBOX_SETTING,
       ...(setting?.tranboxSetting || {}),
+      apiSlugs: [OPT_TRANS_TRANSLATEGEMMA],
+      toLang: normalizeTraditionalTarget(
+        setting?.tranboxSetting?.toLang,
+        DEFAULT_TRANBOX_SETTING.toLang
+      ),
+    },
+    subtitleSetting: {
+      ...DEFAULT_SUBTITLE_SETTING,
+      ...(setting?.subtitleSetting || {}),
+      apiSlug: OPT_TRANS_TRANSLATEGEMMA,
+      toLang: normalizeTraditionalTarget(
+        setting?.subtitleSetting?.toLang,
+        DEFAULT_SUBTITLE_SETTING.toLang
+      ),
+    },
+    mouseHoverSetting: {
+      ...DEFAULT_MOUSE_HOVER_SETTING,
+      ...(setting?.mouseHoverSetting || {}),
+      apiSlug:
+        setting?.mouseHoverSetting?.apiSlug === GLOBAL_KEY
+          ? GLOBAL_KEY
+          : OPT_TRANS_TRANSLATEGEMMA,
     },
     version: setting?.version ?? DEFAULT_SETTING.version,
   };
 
-  // 设置读取时只在内存中归一化一次，避免每次请求重复解析模型能力。
-  return {
-    ...mergedSetting,
-    transApis: normalizeApiThinkingSettings(mergedSetting.transApis),
-  };
+  return mergedSetting;
 };
 export const migrateStoredSettingToV2 = async (
   setting,
