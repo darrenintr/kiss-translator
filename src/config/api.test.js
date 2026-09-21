@@ -7,6 +7,7 @@ import {
   DEFAULT_API_TYPE,
   OPT_LANGS_FROM_SPEC,
   OPT_LANGS_TO_SPEC,
+  OPT_LANGS_TO_CODE,
   GEMINI_GENERATE_CONTENT_URL,
   GEMINI_INTERACTIONS_URL,
   getGeminiThinkingEfforts,
@@ -82,6 +83,15 @@ test("configures Gemma 4 E2B as a local multimodal AI provider", () => {
   expect(API_SPE_TYPES.context.has(OPT_TRANS_GEMMA4)).toBe(true);
   expect(API_SPE_TYPES.stream.has(OPT_TRANS_GEMMA4)).toBe(true);
   expect(API_SPE_TYPES.mulkeys.has(OPT_TRANS_GEMMA4)).toBe(false);
+});
+
+test("maps Gemma 4 language names back to KISS language codes", () => {
+  expect(OPT_LANGS_TO_SPEC[OPT_TRANS_GEMMA4]).toBeDefined();
+  expect(OPT_LANGS_TO_SPEC[OPT_TRANS_GEMMA4].get("en")).toBe("English");
+  expect(OPT_LANGS_TO_CODE[OPT_TRANS_GEMMA4].get("English")).toBe("en");
+  expect(OPT_LANGS_TO_CODE[OPT_TRANS_GEMMA4].get("Traditional Chinese")).toBe(
+    "zh-TW"
+  );
 });
 
 test("does not expose Simplified Chinese as a translation target", () => {
