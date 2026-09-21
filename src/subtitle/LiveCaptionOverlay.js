@@ -69,7 +69,7 @@ function ensureOverlay() {
 }
 
 export function startLiveCaptionOverlay() {
-  let lastText = "";
+  let lastFinalText = "";
   let hideTimer = null;
   const root = ensureOverlay();
 
@@ -77,8 +77,14 @@ export function startLiveCaptionOverlay() {
     if (action === MSG_LOCAL_ASR_RESULT) {
       const raw = String(args?.text || "").trim();
       if (!raw) return;
-      const text = commonPrefixSuffixTrim(lastText, raw) || raw;
-      lastText = raw;
+
+      // Partial ASR messages replace the current in-progress line. Only a
+      // completed chunk advances overlap de-duplication for the next chunk.
+      const text = commonPrefixSuffixTrim(lastFinalText, raw) || raw;
+      if (args?.final !== false) {
+        lastFinalText = raw;
+      }
+
       root.textContent = text;
       root.style.display = "block";
       clearTimeout(hideTimer);
@@ -94,7 +100,7 @@ export function startLiveCaptionOverlay() {
         root.style.display = "block";
       } else {
         root.style.display = "none";
-        lastText = "";
+        lastFinalText = "";
       }
       return;
     }
