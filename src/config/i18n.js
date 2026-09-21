@@ -10,7 +10,6 @@ import { RULE_EDITOR_I18N } from "./i18n.ruleEditor";
 
 export const UI_LANGS = [
   ["en", "English"],
-  ["zh", "简体中文"],
   ["zh_TW", "繁體中文"],
   ["ja", "日本語"],
   ["ko", "한국어"],
@@ -20,7 +19,6 @@ export const UI_LANGS = [
 ];
 
 const customApiLangs = `["en", "English - English"],
-["zh-CN", "Simplified Chinese - 简体中文"],
 ["zh-TW", "Traditional Chinese - 繁體中文"],
 ["ar", "Arabic - العربية"],
 ["bg", "Bulgarian - Български"],
