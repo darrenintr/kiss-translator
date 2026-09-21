@@ -9,7 +9,7 @@ import {
   OPT_SUG_YOUDAO,
   DEFAULT_HTTP_TIMEOUT,
   OPT_TRANS_TRANSLATEGEMMA,
-  DEFAULT_API_LIST,
+  DEFAULT_LOCAL_API_LIST,
   OPT_LANGS_TO,
 } from "./api";
 import {
@@ -287,7 +287,7 @@ export const DEFAULT_SETTING = {
   // transTitle: false, // 是否同时翻译页面标题(移至rule，作废)
   subrulesList: DEFAULT_SUBRULES_LIST, // 订阅的在线翻译规则列表
   // owSubrule: DEFAULT_OW_RULE, // 覆写订阅规则 (作废)
-  transApis: DEFAULT_API_LIST, // 缓存的全部可用翻译 API 配置列表（数组格式）
+  transApis: DEFAULT_LOCAL_API_LIST, // 缓存的全部可用翻译 API 配置列表（数组格式）
   prompts: [], // 用户自定义提示词；预设提示词由 config/prompt.js 提供，不写入本地配置
   // mouseKey: OPT_TIMING_PAGESCROLL, // 翻译时机/鼠标悬停翻译(移至rule，作废)
   shortcuts: DEFAULT_SHORTCUTS, // 键盘快捷键配置对象
