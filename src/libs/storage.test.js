@@ -6,6 +6,7 @@ import {
   DEFAULT_SUBTITLE_SETTING,
   OPT_TRANS_OPENAI,
   OPT_TRANS_TENCENT,
+  OPT_TRANS_GEMMA4,
   OPT_TRANS_TRANSLATEGEMMA,
 } from "../config";
 import { getSettingWithDefault, runDataMigration } from "./storage";
@@ -68,11 +69,10 @@ describe("settings storage migration", () => {
     expect(backup).toEqual(oldSetting);
     expect(stored.version).toBe(SETTINGS_VERSION_V3);
     expect(stored.uiLang).toBe("zh_TW");
-    expect(stored.transApis).toHaveLength(1);
-    expect(stored.transApis[0]).toMatchObject({
-      apiSlug: OPT_TRANS_TRANSLATEGEMMA,
-      apiType: OPT_TRANS_TRANSLATEGEMMA,
-    });
+    expect(stored.transApis.map((api) => api.apiType)).toEqual([
+      OPT_TRANS_TRANSLATEGEMMA,
+      OPT_TRANS_GEMMA4,
+    ]);
     expect(stored.inputRule.apiSlug).toBe(OPT_TRANS_TRANSLATEGEMMA);
     expect(stored.tranboxSetting.apiSlugs).toEqual([
       OPT_TRANS_TRANSLATEGEMMA,
@@ -95,17 +95,16 @@ describe("settings storage migration", () => {
 
       await runDataMigration();
 
-      expect(readStoredJson(STOKEY_SETTING)).toMatchObject({
+      const stored = readStoredJson(STOKEY_SETTING);
+      expect(stored).toMatchObject({
         version: SETTINGS_VERSION_V3,
         darkMode: expected,
         uiLang: "en",
-        transApis: [
-          expect.objectContaining({
-            apiSlug: OPT_TRANS_TRANSLATEGEMMA,
-            apiType: OPT_TRANS_TRANSLATEGEMMA,
-          }),
-        ],
       });
+      expect(stored.transApis.map((api) => api.apiType)).toEqual([
+        OPT_TRANS_TRANSLATEGEMMA,
+        OPT_TRANS_GEMMA4,
+      ]);
       expect(readStoredJson(STOKEY_SETTING_BACKUP_V1_BEFORE_V2)).toBe(null);
     }
   );
@@ -161,11 +160,10 @@ describe("settings storage migration", () => {
 
     expect(setting.version).toBe(SETTINGS_VERSION_V3);
     expect(setting.uiLang).toBe("zh_TW");
-    expect(setting.transApis).toHaveLength(1);
-    expect(setting.transApis[0]).toMatchObject({
-      apiSlug: OPT_TRANS_TRANSLATEGEMMA,
-      apiType: OPT_TRANS_TRANSLATEGEMMA,
-    });
+    expect(setting.transApis.map((api) => api.apiType)).toEqual([
+      OPT_TRANS_TRANSLATEGEMMA,
+      OPT_TRANS_GEMMA4,
+    ]);
   });
 
   test.each([
@@ -311,11 +309,10 @@ describe("settings storage migration", () => {
   test("uses only TranslateGemma for a fresh installation", async () => {
     const setting = await getSettingWithDefault();
 
-    expect(setting.transApis).toHaveLength(1);
-    expect(setting.transApis[0]).toMatchObject({
-      apiSlug: OPT_TRANS_TRANSLATEGEMMA,
-      apiType: OPT_TRANS_TRANSLATEGEMMA,
-    });
+    expect(setting.transApis.map((api) => api.apiType)).toEqual([
+      OPT_TRANS_TRANSLATEGEMMA,
+      OPT_TRANS_GEMMA4,
+    ]);
   });
 
   test.each(["none", "minimal", "_default"])(
@@ -338,8 +335,10 @@ describe("settings storage migration", () => {
         JSON.stringify(storedSetting)
       );
       const setting = await getSettingWithDefault();
-      expect(setting.transApis).toHaveLength(1);
-      expect(setting.transApis[0].apiType).toBe(OPT_TRANS_TRANSLATEGEMMA);
+      expect(setting.transApis.map((api) => api.apiType)).toEqual([
+        OPT_TRANS_TRANSLATEGEMMA,
+        OPT_TRANS_GEMMA4,
+      ]);
       expect(readStoredJson(STOKEY_SETTING)).toEqual(storedSetting);
     }
   );
