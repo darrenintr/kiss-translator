@@ -77,6 +77,7 @@ export const OPT_TRANS_CLAUDE = "Claude"; // Anthropic Claude 翻译
 export const OPT_TRANS_CLOUDFLAREAI = "CloudflareAI"; // Cloudflare Workers AI 翻译
 export const OPT_TRANS_OLLAMA = "Ollama"; // 本地部署 Ollama 模型翻译
 export const OPT_TRANS_TRANSLATEGEMMA = "TranslateGemma"; // 本地 llama.cpp TranslateGemma 翻译
+export const OPT_TRANS_GEMMA4 = "Gemma4"; // 本地 llama.cpp Gemma 4 E2B 多模态通用模型
 export const OPT_TRANS_OPENROUTER = "OpenRouter"; // OpenRouter 多模型聚合 API 翻译
 export const OPT_TRANS_ORCAROUTER = "OrcaRouter"; // OrcaRouter 多模型聚合 API 翻译
 export const OPT_TRANS_CUSTOMIZE = "Custom"; // 自定义翻译 API
@@ -113,13 +114,17 @@ export const OPT_TRANS_CATALOG_TYPES = [
   OPT_TRANS_CLOUDFLAREAI,
   OPT_TRANS_OLLAMA,
   OPT_TRANS_TRANSLATEGEMMA,
+  OPT_TRANS_GEMMA4,
   OPT_TRANS_OPENROUTER,
   OPT_TRANS_ORCAROUTER,
   OPT_TRANS_CUSTOMIZE,
 ];
 
 // Only this allow-list is exposed to users and accepted for new configuration.
-export const OPT_ALL_TRANS_TYPES = [OPT_TRANS_TRANSLATEGEMMA];
+export const OPT_ALL_TRANS_TYPES = [
+  OPT_TRANS_TRANSLATEGEMMA,
+  OPT_TRANS_GEMMA4,
+];
 
 export const OPT_LANGDETECTOR_ALL = [
   OPT_TRANS_BUILTINAI,
@@ -159,6 +164,7 @@ export const API_SPE_TYPES = {
     OPT_TRANS_GEMINI_2,
     OPT_TRANS_CLAUDE,
     OPT_TRANS_OLLAMA,
+    OPT_TRANS_GEMMA4,
     OPT_TRANS_OPENROUTER,
     OPT_TRANS_ORCAROUTER,
     OPT_TRANS_CUSTOMIZE,
@@ -209,6 +215,7 @@ export const API_SPE_TYPES = {
     OPT_TRANS_GEMINI_2,
     OPT_TRANS_CLAUDE,
     OPT_TRANS_OLLAMA,
+    OPT_TRANS_GEMMA4,
     OPT_TRANS_OPENROUTER,
     OPT_TRANS_ORCAROUTER,
     OPT_TRANS_EPHONEAI,
@@ -228,6 +235,7 @@ export const API_SPE_TYPES = {
     OPT_TRANS_GEMINI_2,
     OPT_TRANS_CLAUDE,
     OPT_TRANS_OLLAMA,
+    OPT_TRANS_GEMMA4,
     OPT_TRANS_OPENROUTER,
     OPT_TRANS_ORCAROUTER,
     OPT_TRANS_EPHONEAI,
@@ -247,6 +255,7 @@ export const API_SPE_TYPES = {
     OPT_TRANS_GEMINI_2,
     OPT_TRANS_CLAUDE,
     OPT_TRANS_OLLAMA,
+    OPT_TRANS_GEMMA4,
     OPT_TRANS_OPENROUTER,
     OPT_TRANS_ORCAROUTER,
     OPT_TRANS_EPHONEAI,
@@ -1744,6 +1753,19 @@ const defaultApiOpts = {
     fetchLimit: 4,
     fetchInterval: 0,
   },
+  [OPT_TRANS_GEMMA4]: {
+    ...defaultApi,
+    apiName: "Gemma 4 E2B",
+    url: "http://127.0.0.1:8083/v1/chat/completions",
+    modelListUrl: "http://127.0.0.1:8083/v1/models",
+    model: "gemma-4-E2B-it-abliterated.Q4_K_M.gguf",
+    temperature: 0.1,
+    maxTokens: 4096,
+    fetchLimit: 1,
+    fetchInterval: 0,
+    batchConcurrency: 1,
+    ...defaultAiApiOpts,
+  },
   [OPT_TRANS_OPENROUTER]: {
     ...defaultApi,
     url: "https://openrouter.ai/api/v1/chat/completions",
@@ -1770,7 +1792,7 @@ export const DEFAULT_API_LIST = OPT_TRANS_CATALOG_TYPES.map((apiType) =>
   normalizeApiThinkingSetting({
     ...defaultApiOpts[apiType],
     apiSlug: apiType,
-    apiName: apiType,
+    apiName: defaultApiOpts[apiType]?.apiName || apiType,
     apiType,
   })
 );
