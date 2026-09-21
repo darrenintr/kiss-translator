@@ -657,8 +657,16 @@ export const putSetting = async (obj) => {
 // --- 用户翻译规则 (Rules) 数据存取 ---
 export const getRules = () => getObj(STOKEY_RULES);
 export const getRulesOld = () => getObj(STOKEY_RULES_OLD);
-export const getRulesWithDefault = async () =>
-  (await getRules()) || DEFAULT_RULES;
+export const getRulesWithDefault = async () => {
+  const rules = (await getRules()) || DEFAULT_RULES;
+  if (!Array.isArray(rules)) return DEFAULT_RULES;
+  return rules.map((rule) => ({
+    ...rule,
+    apiSlug:
+      rule?.apiSlug === GLOBAL_KEY ? GLOBAL_KEY : OPT_TRANS_TRANSLATEGEMMA,
+    toLang: rule?.toLang === "zh-CN" ? "zh-TW" : rule?.toLang,
+  }));
+};
 export const setRules = (val) => setObj(STOKEY_RULES, val);
 
 // --- 个人生词本词汇 (Fav Words) 数据存取 ---
