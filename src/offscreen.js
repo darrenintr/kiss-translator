@@ -180,23 +180,39 @@ async function transcribeWithGemma4(wav, language) {
     cache: "no-store",
     body: JSON.stringify({
       temperature: 0,
-      max_tokens: 256,
+      max_tokens: 160,
+      response_format: {
+        type: "json_schema",
+        schema: {
+          type: "object",
+          properties: {
+            language: { type: "string" },
+            transcript: { type: "string" },
+            translation: { type: "string" },
+          },
+          required: ["language", "transcript", "translation"],
+          additionalProperties: false,
+        },
+      },
       messages: [
         {
           role: "user",
           content: [
-            {
-              type: "text",
-              text:
-                languageHint +
-                "Listen to this audio. Transcribe only the spoken words accurately, then translate them naturally into Traditional Chinese (zh-TW). Preserve product names and technical terms. Return JSON only with keys language, transcript, translation. Do not add commentary.",
-            },
+            // Match llama.cpp's own multimodal CLI ordering: media first,
+            // instruction second. Gemma 4 is sensitive to the media marker
+            // position and can otherwise behave as if no audio was provided.
             {
               type: "input_audio",
               input_audio: {
                 data: audio,
                 format: "wav",
               },
+            },
+            {
+              type: "text",
+              text:
+                languageHint +
+                "Transcribe the spoken words in the audio exactly. Then translate that transcript naturally into Traditional Chinese used in Taiwan. Keep product names, interface names, units, numbers, and technical terminology accurate. Return only the requested JSON object.",
             },
           ],
         },
