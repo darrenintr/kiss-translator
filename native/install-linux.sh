@@ -169,7 +169,11 @@ if [[ "$HAS_QWEN_ASR" -eq 1 ]]; then
 fi
 systemctl --user disable "$GEMMA4_SERVICE_NAME" >/dev/null 2>&1 || true
 # The lightweight localhost launcher stays enabled for sandboxed browsers.
-systemctl --user enable --now "$LAUNCHER_SERVICE_NAME"
+# Always restart it after copying the helper script. "enable --now" does not
+# restart an already-running unit, which would leave an older Python process
+# serving stale routes such as a launcher without /start-gemma4.
+systemctl --user enable "$LAUNCHER_SERVICE_NAME" >/dev/null
+systemctl --user restart "$LAUNCHER_SERVICE_NAME"
 
 write_manifest() {
   local dir="$1"
