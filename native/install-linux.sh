@@ -18,6 +18,8 @@ Optional environment variables:
   CONTEXT=4096
   PORT=8081
   ASR_PORT=8082
+  TRANSLATE_SLEEP_SECONDS=90
+  ASR_SLEEP_SECONDS=20
   ASR_MODEL=/home/darren/llama/Qwen3-ASR-0.6B-Q8_0.gguf
   ASR_MMPROJ=/home/darren/llama/mmproj-Qwen3-ASR-0.6B-Q8_0.gguf
 
@@ -44,6 +46,8 @@ PARALLEL="${PARALLEL:-4}"
 CONTEXT="${CONTEXT:-4096}"
 PORT="${PORT:-8081}"
 ASR_PORT="${ASR_PORT:-8082}"
+TRANSLATE_SLEEP_SECONDS="${TRANSLATE_SLEEP_SECONDS:-90}"
+ASR_SLEEP_SECONDS="${ASR_SLEEP_SECONDS:-20}"
 
 if [[ ! "$EXTENSION_ID" =~ ^[a-p]{32}$ ]]; then
   echo "Error: '$EXTENSION_ID' does not look like a Chrome extension ID." >&2
@@ -88,7 +92,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=$LLAMA_SERVER -m "$MODEL_PATH" --host 127.0.0.1 --port $PORT --device $DEVICE -ngl all -c $CONTEXT --parallel $PARALLEL --no-jinja
+ExecStart=$LLAMA_SERVER -m "$MODEL_PATH" --host 127.0.0.1 --port $PORT --device $DEVICE -ngl all -c $CONTEXT --parallel $PARALLEL --flash-attn on --sleep-idle-seconds $TRANSLATE_SLEEP_SECONDS --no-jinja
 Restart=on-failure
 RestartSec=2
 
@@ -103,7 +107,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=$LLAMA_SERVER -m "$ASR_MODEL" --mmproj "$ASR_MMPROJ" --host 127.0.0.1 --port $ASR_PORT --device $DEVICE -ngl all -c 4096 --parallel 1
+ExecStart=$LLAMA_SERVER -m "$ASR_MODEL" --mmproj "$ASR_MMPROJ" --host 127.0.0.1 --port $ASR_PORT --device $DEVICE -ngl all -c 4096 --parallel 1 --sleep-idle-seconds $ASR_SLEEP_SECONDS
 Restart=on-failure
 RestartSec=2
 
@@ -159,10 +163,12 @@ echo "Installed KISS Translator local AI launcher."
 echo "  llama-server: $LLAMA_SERVER"
 echo "  Translate model: $MODEL_PATH"
 echo "  Translate port:  $PORT"
+echo "  Translate idle sleep: ${TRANSLATE_SLEEP_SECONDS}s"
 echo "  Translate service: $SERVICE_PATH"
 echo "  ASR model:       $ASR_MODEL"
 echo "  ASR mmproj:      $ASR_MMPROJ"
 echo "  ASR port:        $ASR_PORT"
+echo "  ASR idle sleep:  ${ASR_SLEEP_SECONDS}s"
 echo "  ASR service:     $ASR_SERVICE_PATH"
 echo "  device:          $DEVICE"
 echo "  launcher:        $LAUNCHER_SERVICE_PATH"

@@ -479,8 +479,8 @@ export default function SubtitleSetting() {
     showList = OPT_ENHANCE_MOBILE_OFF,
     skipAd = false,
     aiContextSlug = "-",
-    localAiChunkMs = 2200,
-    localAiOverlapMs = 300,
+    localAiChunkMs = 1000,
+    localAiOverlapMs = 200,
     localAiLanguage = "auto",
     segPromptMode = PROMPT_MODE_FOLLOW_API,
     segPromptSlug,
@@ -857,12 +857,12 @@ export default function SubtitleSetting() {
               label={i18n("settings_local_ai_chunk", "Audio chunk length")}
               description={i18n(
                 "settings_local_ai_chunk_description",
-                "Shorter chunks reduce subtitle delay; longer chunks give the ASR model more context."
+                "Qwen3-ASR streams partial text while decoding. Around 1000 ms is a low-latency default; longer chunks give the model more acoustic context."
               )}
             >
               <SettingsRange
                 value={localAiChunkMs}
-                min={1000}
+                min={600}
                 max={5000}
                 step={100}
                 unit=" ms"
