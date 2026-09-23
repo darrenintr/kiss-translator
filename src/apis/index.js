@@ -14,6 +14,7 @@ import {
   MSG_BUILTINAI_TRANSLATE,
   OPT_TRANS_BUILTINAI,
   OPT_TRANS_QWENMT,
+  OPT_TRANS_TRANSLATEGEMMA,
   URL_CACHE_SUBTITLE,
   URL_CACHE_CONTEXT,
   OPT_LANGS_TO_CODE,
@@ -42,7 +43,7 @@ import {
 } from "./trans";
 import { getHttpCachePolyfill, putHttpCachePolyfill } from "../libs/cache";
 import { getBatchQueue } from "../libs/batchQueue";
-import { isBuiltinAIAvailable } from "../libs/browser";
+import { browser, isBuiltinAIAvailable } from "../libs/browser";
 import { chromeDetect, chromeTranslate } from "../libs/builtinAI";
 import { fnPolyfill } from "../libs/fetch";
 import { normalizeHttpTimeout } from "../libs/request";
@@ -59,6 +60,34 @@ const PROMPT_CACHE_SCOPE_QWEN_MT = "qwen-mt";
 
 const isGenericChineseLanguageCode = (code) =>
   typeof code === "string" && /^zh$/i.test(code.trim());
+
+const detectTranslateGemmaSourceLang = async (text) => {
+  try {
+    const result = await browser?.i18n?.detectLanguage?.(text);
+    const first = result?.languages?.[0];
+    const detected = normalizeLanguageCode(first?.language);
+    const percentage = Number(first?.percentage) || 0;
+    if (
+      detected &&
+      (result?.isReliable ||
+        percentage >= 60 ||
+        /^zh(?:[-_]|$)/i.test(first?.language || ""))
+    ) {
+      return detected;
+    }
+  } catch (err) {
+    kissLog("TranslateGemma local language detection", err);
+  }
+
+  const documentLang = normalizeLanguageCode(
+    globalThis?.document?.documentElement?.lang || ""
+  );
+  if (documentLang) return documentLang;
+
+  throw new Error(
+    "TranslateGemma could not detect the source language locally. Select the source language manually."
+  );
+};
 
 const getTranslationLanguageMatch = ({
   fromLang,
@@ -718,10 +747,17 @@ export const apiTranslate = async ({
   }
 
   const { apiType, apiSlug, useBatchFetch } = apiSetting;
+  const sourceLang =
+    apiType === OPT_TRANS_TRANSLATEGEMMA && fromLang === "auto"
+      ? await detectTranslateGemmaSourceLang(text)
+      : fromLang;
   const langMap = OPT_LANGS_TO_SPEC[apiType] || OPT_LANGS_SPEC_DEFAULT;
   const fromMap = OPT_LANGS_FROM_SPEC[apiType] || langMap;
-  const from = fromMap.get(fromLang);
+  const from = fromMap.get(sourceLang);
   const to = langMap.get(toLang);
+  if (apiType === OPT_TRANS_TRANSLATEGEMMA && !from) {
+    throw new Error(`The source lang: ${sourceLang} not support`);
+  }
   if (!to) {
     throw new Error(`The target lang: ${toLang} not support`);
   }
@@ -801,7 +837,7 @@ export const apiTranslate = async ({
             configuredBatchConcurrency >= 1
           ? Math.floor(configuredBatchConcurrency)
           : 1;
-    const key = `${apiSlug}_${fromLang}_${toLang}_${textFormat}_${enableStream ? "stream" : "batch"}_${promptSig}_${effectiveBatchConcurrency}`;
+    const key = `${apiSlug}_${sourceLang}_${toLang}_${textFormat}_${enableStream ? "stream" : "batch"}_${promptSig}_${effectiveBatchConcurrency}`;
     const queue = getBatchQueue(key, handleTranslate, {
       batchInterval,
       batchSize,
@@ -812,7 +848,7 @@ export const apiTranslate = async ({
     translation = await queue.addTask(text, {
       from,
       to,
-      fromLang,
+      fromLang: sourceLang,
       toLang,
       langMap,
       glossary,
@@ -828,7 +864,7 @@ export const apiTranslate = async ({
     const generator = handleTranslate([text], {
       from,
       to,
-      fromLang,
+      fromLang: sourceLang,
       toLang,
       langMap,
       glossary,

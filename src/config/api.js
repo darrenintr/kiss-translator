@@ -76,6 +76,7 @@ export const OPT_TRANS_GEMINI_2 = "Gemini2"; // 谷歌 Gemini API 翻译 (OpenAI
 export const OPT_TRANS_CLAUDE = "Claude"; // Anthropic Claude 翻译
 export const OPT_TRANS_CLOUDFLAREAI = "CloudflareAI"; // Cloudflare Workers AI 翻译
 export const OPT_TRANS_OLLAMA = "Ollama"; // 本地部署 Ollama 模型翻译
+export const OPT_TRANS_TRANSLATEGEMMA = "TranslateGemma"; // 本地 llama.cpp TranslateGemma 翻译
 export const OPT_TRANS_OPENROUTER = "OpenRouter"; // OpenRouter 多模型聚合 API 翻译
 export const OPT_TRANS_ORCAROUTER = "OrcaRouter"; // OrcaRouter 多模型聚合 API 翻译
 export const OPT_TRANS_CUSTOMIZE = "Custom"; // 自定义翻译 API
@@ -111,6 +112,7 @@ export const OPT_ALL_TRANS_TYPES = [
   OPT_TRANS_CLAUDE,
   OPT_TRANS_CLOUDFLAREAI,
   OPT_TRANS_OLLAMA,
+  OPT_TRANS_TRANSLATEGEMMA,
   OPT_TRANS_OPENROUTER,
   OPT_TRANS_ORCAROUTER,
   OPT_TRANS_CUSTOMIZE,
@@ -1103,6 +1105,7 @@ export const OPT_LANGS_TO_SPEC = {
   [OPT_TRANS_GEMINI_2]: OPT_LANGS_SPEC_NAME,
   [OPT_TRANS_CLAUDE]: OPT_LANGS_SPEC_NAME,
   [OPT_TRANS_OLLAMA]: OPT_LANGS_SPEC_NAME,
+  [OPT_TRANS_TRANSLATEGEMMA]: OPT_LANGS_SPEC_NAME,
   [OPT_TRANS_OPENROUTER]: OPT_LANGS_SPEC_NAME,
   [OPT_TRANS_ORCAROUTER]: OPT_LANGS_SPEC_NAME,
   [OPT_TRANS_CLOUDFLAREAI]: new Map([
@@ -1723,6 +1726,14 @@ const defaultApiOpts = {
     modelListUrl: "http://localhost:11434/v1/models",
     model: "llama3.1",
     ...defaultAiApiOpts,
+  },
+  [OPT_TRANS_TRANSLATEGEMMA]: {
+    ...defaultApi,
+    url: "http://127.0.0.1:8081/completion",
+    temperature: 0.1,
+    maxTokens: 2048,
+    fetchLimit: 4,
+    fetchInterval: 0,
   },
   [OPT_TRANS_OPENROUTER]: {
     ...defaultApi,

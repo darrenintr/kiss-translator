@@ -64,6 +64,115 @@ installStorageCoordinator();
 
 let openingOptionsPage = false;
 
+const TRANSLATEGEMMA_NATIVE_HOST =
+  "io.github.darrenintr.kiss_translator.translategemma";
+const TRANSLATEGEMMA_HEALTH_URL = "http://127.0.0.1:8081/health";
+const TRANSLATEGEMMA_LAUNCHER_URL = "http://127.0.0.1:8765/start";
+const TRANSLATEGEMMA_LOCAL_URL_RE =
+  /^https?:\/\/(?:127\.0\.0\.1|localhost):8081(?:\/|$)/i;
+const TRANSLATEGEMMA_READY_TTL_MS = 30000;
+
+let translateGemmaReadyUntil = 0;
+let translateGemmaStartPromise = null;
+
+const isTranslateGemmaLocalRequest = (input = "") =>
+  TRANSLATEGEMMA_LOCAL_URL_RE.test(String(input));
+
+async function checkTranslateGemmaHealth() {
+  try {
+    const response = await fetch(TRANSLATEGEMMA_HEALTH_URL, {
+      method: "GET",
+      cache: "no-store",
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureTranslateGemmaBackend(input) {
+  if (!isTranslateGemmaLocalRequest(input)) return;
+  if (Date.now() < translateGemmaReadyUntil) return;
+
+  if (await checkTranslateGemmaHealth()) {
+    translateGemmaReadyUntil = Date.now() + TRANSLATEGEMMA_READY_TTL_MS;
+    return;
+  }
+
+  if (translateGemmaStartPromise) {
+    return translateGemmaStartPromise;
+  }
+
+  translateGemmaStartPromise = (async () => {
+    let localLauncherError;
+
+    // Prefer the localhost launcher. It works even when the browser itself is
+    // sandboxed (for example Brave/Chromium installed as a Snap), because the
+    // privileged systemd helper runs outside the browser sandbox.
+    try {
+      const launcherResponse = await fetch(TRANSLATEGEMMA_LAUNCHER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-KISS-Translator-Launcher": "1",
+        },
+        body: "{}",
+        cache: "no-store",
+      });
+      const launcherBody = await launcherResponse.json().catch(() => ({}));
+      if (launcherResponse.ok && launcherBody?.ok) {
+        translateGemmaReadyUntil =
+          Date.now() + TRANSLATEGEMMA_READY_TTL_MS;
+        return;
+      }
+      localLauncherError =
+        launcherBody?.error ||
+        `launcher returned HTTP ${launcherResponse.status}`;
+    } catch (err) {
+      localLauncherError = err?.message || String(err);
+    }
+
+    // Keep Native Messaging as a fallback for native browser packages.
+    if (typeof browser.runtime.sendNativeMessage === "function") {
+      try {
+        const response = await browser.runtime.sendNativeMessage(
+          TRANSLATEGEMMA_NATIVE_HOST,
+          { action: "ensure_started" }
+        );
+        if (response?.ok) {
+          translateGemmaReadyUntil =
+            Date.now() + TRANSLATEGEMMA_READY_TTL_MS;
+          return;
+        }
+        throw new Error(
+          response?.error ||
+            "TranslateGemma native launcher failed to start llama.cpp."
+        );
+      } catch (err) {
+        throw new Error(
+          `TranslateGemma launcher unavailable. Local helper: ${localLauncherError || "unknown error"}. Native Messaging: ${err?.message || err}`
+        );
+      }
+    }
+
+    throw new Error(
+      `TranslateGemma launcher unavailable. Local helper: ${localLauncherError || "unknown error"}.`
+    );
+  })();
+
+  try {
+    await translateGemmaStartPromise;
+  } finally {
+    translateGemmaStartPromise = null;
+  }
+}
+
+async function fetchWithTranslateGemmaAutostart(args) {
+  await ensureTranslateGemmaBackend(args?.input);
+  return fetchHandle(args);
+}
+
+
 /**
  * Open the extension settings with the native API when available.
  * Fall back to a new tab when the native API is unavailable or fails.
@@ -723,7 +832,7 @@ const messageHandlers = {
     Number.isInteger(sender?.frameId) ? sender.frameId : undefined,
   [MSG_VALIDATE_DOCUMENT]: (args, sender) =>
     isCurrentPopupDocument(sender?.tab?.id, args),
-  [MSG_FETCH]: (args) => fetchHandle(args), // 跨域请求代理
+  [MSG_FETCH]: (args) => fetchWithTranslateGemmaAutostart(args), // 跨域请求代理；本地 TranslateGemma 按需启动
   [MSG_GET_HTTPCACHE]: (args) => getHttpCache(args), // 读取翻译 HTTP 缓存
   [MSG_PUT_HTTPCACHE]: (args) => putHttpCache(args), // 存入翻译 HTTP 缓存
   [MSG_SHA256]: ({ text = "", salt = "" } = {}) => sha256(text, salt), // 代算缓存签名

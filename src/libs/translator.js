@@ -4999,6 +4999,7 @@ overflow-wrap: anywhere !important;`;
     }
     let hasChanged = false;
     let needsRescan = false;
+    let needsRetranslate = false;
     const oldTransAllnow = this.#transAllnow;
     const oldRootMargin = this.#rootMargin;
     for (const key in newRule) {
@@ -5008,6 +5009,17 @@ overflow-wrap: anywhere !important;`;
       ) {
         this.#rule[key] = newRule[key];
         if (
+          key === "apiSlug" ||
+          key === "fromLang" ||
+          key === "toLang"
+        ) {
+          // These values change the translation result itself. Existing nodes
+          // are already recorded in #processedNodes, so merely re-observing
+          // them will not issue a new request. Force a real retranslation
+          // while page translation is active.
+          needsRetranslate = true;
+          hasChanged = true;
+        } else if (
           key === "autoScan" ||
           key === "selector" ||
           key === "ignoreSelector" ||
@@ -5037,6 +5049,7 @@ overflow-wrap: anywhere !important;`;
     if (
       needsRescan ||
       needsTriggerRescan ||
+      (this.#enabled && needsRetranslate) ||
       (this.#enabled && this.#transAllnow)
     ) {
       this.rescan();

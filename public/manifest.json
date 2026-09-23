@@ -86,7 +86,8 @@
     "contextMenus",
     "scripting",
     "declarativeNetRequest",
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "nativeMessaging"
   ],
   "optional_permissions": [
     "clipboardRead"

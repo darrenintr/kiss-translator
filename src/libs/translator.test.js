@@ -116,6 +116,40 @@ describe("Translator rule styles", () => {
     expect(tryDetectLang).not.toHaveBeenCalled();
   });
 
+  test("changing translation provider retranslates visible content with the new API", async () => {
+    document.body.innerHTML =
+      '<main id="root"><p id="article">Provider switch article text</p></main>';
+    const translator = createTranslator(
+      { apiSlug: "Microsoft" },
+      {
+        transApis: [
+          createApiSetting("Microsoft"),
+          createApiSetting("TranslateGemma"),
+        ],
+      }
+    );
+
+    await flushAsync();
+    await flushAsync();
+    expect(apiTranslate).toHaveBeenCalled();
+    expect(apiTranslate.mock.calls.at(-1)[0].apiSetting.apiSlug).toBe(
+      "Microsoft"
+    );
+
+    apiTranslate.mockClear();
+    translator.updateRule({ apiSlug: "TranslateGemma" });
+    await flushAsync();
+    await flushAsync();
+
+    expect(apiTranslate).toHaveBeenCalled();
+    expect(apiTranslate.mock.calls.at(-1)[0].apiSetting.apiSlug).toBe(
+      "TranslateGemma"
+    );
+    expect(
+      document.querySelectorAll("#article .kiss-translator-wrapper")
+    ).toHaveLength(1);
+  });
+
   test("changing manual targets removes old translations and discovers new targets", async () => {
     document.body.innerHTML =
       '<main id="root"><p id="a">First article text</p><p id="b">Second article text</p></main>';

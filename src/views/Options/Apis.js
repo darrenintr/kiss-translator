@@ -58,6 +58,7 @@ import {
   OPT_TRANS_EPHONEAI,
   OPT_TRANS_BUILTINAI,
   OPT_TRANS_QWENMT,
+  OPT_TRANS_TRANSLATEGEMMA,
   OPT_TRANS_YANDEX,
   OPT_TRANS_OPENROUTER,
   OPT_TRANS_GEMINI,
@@ -829,16 +830,18 @@ function ApiFields({ apiSlug, deleteApi, copyApi, onCollapse, onDirtyChange }) {
                 apiType === OPT_TRANS_DEEPLX ? i18n("mulkeys_help") : ""
               }
             />
-            <SensitiveTextField
-              size="small"
-              label={"Key"}
-              name="key"
-              value={key}
-              onChange={handleChange}
-              multiline={API_SPE_TYPES.mulkeys.has(apiType)}
-              maxRows={10}
-              helperText={keyHelper}
-            />
+            {apiType !== OPT_TRANS_TRANSLATEGEMMA && (
+              <SensitiveTextField
+                size="small"
+                label={"Key"}
+                name="key"
+                value={key}
+                onChange={handleChange}
+                multiline={API_SPE_TYPES.mulkeys.has(apiType)}
+                maxRows={10}
+                helperText={keyHelper}
+              />
+            )}
           </>
         )}
 
