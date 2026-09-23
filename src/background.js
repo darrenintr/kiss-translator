@@ -26,6 +26,7 @@ import {
   CMD_OPEN_TRANBOX,
   CMD_TOGGLE_TRANBOX,
   CMD_OPEN_SEPARATE_WINDOW,
+  CMD_TOGGLE_LIVE_CAPTIONS,
   CLIENT_THUNDERBIRD,
   MSG_SET_LOGLEVEL,
   MSG_CLEAR_CACHES,
@@ -39,6 +40,12 @@ import {
   MSG_SHA256,
   MSG_GET_FRAME_ID,
   MSG_VALIDATE_DOCUMENT,
+  MSG_LOCAL_ASR_TOGGLE,
+  MSG_LOCAL_ASR_OFFSCREEN_START,
+  MSG_LOCAL_ASR_OFFSCREEN_STOP,
+  MSG_LOCAL_ASR_RESULT,
+  MSG_LOCAL_ASR_STATE,
+  MSG_LOCAL_ASR_ERROR,
 } from "./config";
 import {
   getSettingWithDefault,
@@ -170,6 +177,195 @@ async function ensureTranslateGemmaBackend(input) {
 async function fetchWithTranslateGemmaAutostart(args) {
   await ensureTranslateGemmaBackend(args?.input);
   return fetchHandle(args);
+}
+
+const LOCAL_ASR_HEALTH_URL = "http://127.0.0.1:8082/health";
+const LOCAL_ASR_LAUNCHER_URL = "http://127.0.0.1:8765/start-asr";
+const LOCAL_ASR_READY_TTL_MS = 30000;
+
+let localAsrReadyUntil = 0;
+let localAsrStartPromise = null;
+let activeLiveCaptionTabId = null;
+
+async function checkLocalAsrHealth() {
+  try {
+    const response = await fetch(LOCAL_ASR_HEALTH_URL, {
+      method: "GET",
+      cache: "no-store",
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureLocalAsrBackend() {
+  if (Date.now() < localAsrReadyUntil) return;
+  if (await checkLocalAsrHealth()) {
+    localAsrReadyUntil = Date.now() + LOCAL_ASR_READY_TTL_MS;
+    return;
+  }
+  if (localAsrStartPromise) return localAsrStartPromise;
+
+  localAsrStartPromise = (async () => {
+    let localLauncherError;
+    try {
+      const response = await fetch(LOCAL_ASR_LAUNCHER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-KISS-Translator-Launcher": "1",
+        },
+        body: "{}",
+        cache: "no-store",
+      });
+      const body = await response.json().catch(() => ({}));
+      if (response.ok && body?.ok) {
+        localAsrReadyUntil = Date.now() + LOCAL_ASR_READY_TTL_MS;
+        return;
+      }
+      localLauncherError = body?.error || `launcher returned HTTP ${response.status}`;
+    } catch (err) {
+      localLauncherError = err?.message || String(err);
+    }
+
+    if (typeof browser.runtime.sendNativeMessage === "function") {
+      const response = await browser.runtime
+        .sendNativeMessage(TRANSLATEGEMMA_NATIVE_HOST, {
+          action: "ensure_asr_started",
+        })
+        .catch((err) => ({ ok: false, error: err?.message || String(err) }));
+      if (response?.ok) {
+        localAsrReadyUntil = Date.now() + LOCAL_ASR_READY_TTL_MS;
+        return;
+      }
+      throw new Error(
+        `Local ASR launcher unavailable. Local helper: ${localLauncherError || "unknown error"}. Native Messaging: ${response?.error || "unknown error"}`
+      );
+    }
+
+    throw new Error(
+      `Local ASR launcher unavailable. Local helper: ${localLauncherError || "unknown error"}.`
+    );
+  })();
+
+  try {
+    await localAsrStartPromise;
+  } finally {
+    localAsrStartPromise = null;
+  }
+}
+
+async function ensureLocalAsrOffscreenDocument() {
+  const chromeApi = globalThis.chrome;
+  if (!chromeApi?.offscreen?.createDocument) {
+    throw new Error("Local AI live captions require Chromium offscreen documents.");
+  }
+
+  const url = chromeApi.runtime.getURL("offscreen.html");
+  if (chromeApi.runtime.getContexts) {
+    const contexts = await chromeApi.runtime.getContexts({
+      contextTypes: ["OFFSCREEN_DOCUMENT"],
+      documentUrls: [url],
+    });
+    if (contexts.length) return;
+  }
+
+  try {
+    await chromeApi.offscreen.createDocument({
+      url: "offscreen.html",
+      reasons: ["USER_MEDIA"],
+      justification: "Capture tab audio for local AI live captions.",
+    });
+  } catch (err) {
+    if (!String(err?.message || err).includes("Only a single offscreen")) throw err;
+  }
+}
+
+async function stopLocalAsrSession(tabId = activeLiveCaptionTabId) {
+  await browser.runtime
+    .sendMessage({ action: MSG_LOCAL_ASR_OFFSCREEN_STOP, args: {} })
+    .catch(() => undefined);
+  if (tabId != null) {
+    await sendTabMsg(
+      MSG_LOCAL_ASR_STATE,
+      { active: false },
+      { frameId: 0 },
+      tabId
+    ).catch(() => undefined);
+  }
+  activeLiveCaptionTabId = null;
+}
+
+async function startLocalAsrSession(tabId) {
+  const chromeApi = globalThis.chrome;
+  if (!chromeApi?.tabCapture?.getMediaStreamId) {
+    throw new Error("This browser does not support tab audio capture for local captions.");
+  }
+
+  await ensureLocalAsrBackend();
+  await ensureLocalAsrOffscreenDocument();
+
+  if (activeLiveCaptionTabId != null && activeLiveCaptionTabId !== tabId) {
+    await stopLocalAsrSession(activeLiveCaptionTabId);
+  }
+
+  const setting = await getSettingWithDefault();
+  const subtitleSetting = setting.subtitleSetting || {};
+  const streamId = await chromeApi.tabCapture.getMediaStreamId({
+    targetTabId: tabId,
+  });
+
+  activeLiveCaptionTabId = tabId;
+  await sendTabMsg(
+    MSG_LOCAL_ASR_STATE,
+    { active: true },
+    { frameId: 0 },
+    tabId
+  ).catch(() => undefined);
+
+  try {
+    await browser.runtime.sendMessage({
+      action: MSG_LOCAL_ASR_OFFSCREEN_START,
+      args: {
+        streamId,
+        tabId,
+        chunkMs: subtitleSetting.localAiChunkMs ?? 2200,
+        overlapMs: subtitleSetting.localAiOverlapMs ?? 300,
+        language: subtitleSetting.localAiLanguage ?? "auto",
+      },
+    });
+  } catch (err) {
+    activeLiveCaptionTabId = null;
+    await sendTabMsg(
+      MSG_LOCAL_ASR_ERROR,
+      { message: err?.message || String(err) },
+      { frameId: 0 },
+      tabId
+    ).catch(() => undefined);
+    throw err;
+  }
+}
+
+async function toggleLocalAsrSession(_args, sender) {
+  const tabId = sender?.tab?.id ?? (await getCurTabId());
+  if (tabId == null) throw new Error("No active tab available for live captions.");
+
+  if (activeLiveCaptionTabId === tabId) {
+    await stopLocalAsrSession(tabId);
+    return { active: false };
+  }
+
+  await startLocalAsrSession(tabId);
+  return { active: true };
+}
+
+async function relayLocalAsrMessage(action, args) {
+  const tabId = args?.tabId;
+  if (tabId == null) return;
+  const payload = { ...args };
+  delete payload.tabId;
+  return sendTabMsg(action, payload, { frameId: 0 }, tabId);
 }
 
 
@@ -855,6 +1051,9 @@ const messageHandlers = {
       ? updateCacheFromActual(args.windowId)
       : undefined,
   [MSG_UPDATE_ICON]: (args, sender) => updateIcon(args, sender?.tab?.id), // 变更页面的插件高亮图标
+  [MSG_LOCAL_ASR_TOGGLE]: (args, sender) => toggleLocalAsrSession(args, sender),
+  [MSG_LOCAL_ASR_RESULT]: (args) => relayLocalAsrMessage(MSG_LOCAL_ASR_RESULT, args),
+  [MSG_LOCAL_ASR_ERROR]: (args) => relayLocalAsrMessage(MSG_LOCAL_ASR_ERROR, args),
 };
 
 /**
@@ -898,6 +1097,11 @@ browser.commands?.onCommand?.addListener?.((command) => {
       if (messageHandlers[MSG_OPEN_SEPARATE_WINDOW]) {
         messageHandlers[MSG_OPEN_SEPARATE_WINDOW]();
       }
+      break;
+    case CMD_TOGGLE_LIVE_CAPTIONS:
+      toggleLocalAsrSession().catch((err) =>
+        kissLog("toggle local AI live captions", err)
+      );
       break;
     default:
   }
@@ -986,5 +1190,12 @@ browser.runtime.onConnect.addListener((port) => {
         handleStreamFetch(port, message.args);
       }
     });
+  }
+});
+
+
+browser.tabs?.onRemoved?.addListener?.((tabId) => {
+  if (tabId === activeLiveCaptionTabId) {
+    stopLocalAsrSession(tabId).catch(() => undefined);
   }
 });

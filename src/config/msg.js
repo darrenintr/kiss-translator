@@ -11,6 +11,7 @@ export const CMD_OPEN_OPTIONS = "openOptions"; // 打开选项配置页面
 export const CMD_OPEN_TRANBOX = "openTranbox"; // 开启划词翻译面板
 export const CMD_TOGGLE_TRANBOX = "toggleTranbox"; // 显隐划词翻译面板
 export const CMD_OPEN_SEPARATE_WINDOW = "openSeparateWindow"; // 打开独立的翻译悬浮窗口
+export const CMD_TOGGLE_LIVE_CAPTIONS = "toggleLiveCaptions"; // 切换本地 AI 实时字幕
 
 // --- 扩展运行中的内部通信 Message Action 常量 ---
 export const MSG_FETCH = "kiss_fetch"; // 代理请求 (避免内容脚本跨域限制)
@@ -51,6 +52,12 @@ export const MSG_UPDATE_SEPARATE_WINDOW_BOUNDS =
 export const PORT_STREAM_FETCH = "kiss_stream_fetch"; // 双向长连接端口名称：用于大模型翻译时的流式输出通道
 export const MSG_UPDATE_ICON = "update_icon"; // 通知后台脚本更新扩展的工具栏图标状态 (激活/灰色状态)
 export const MSG_SHA256 = "sha256"; // 请求后台脚本代算 SHA-256 签名
+export const MSG_LOCAL_ASR_TOGGLE = "local_asr_toggle";
+export const MSG_LOCAL_ASR_OFFSCREEN_START = "local_asr_offscreen_start";
+export const MSG_LOCAL_ASR_OFFSCREEN_STOP = "local_asr_offscreen_stop";
+export const MSG_LOCAL_ASR_RESULT = "local_asr_result";
+export const MSG_LOCAL_ASR_STATE = "local_asr_state";
+export const MSG_LOCAL_ASR_ERROR = "local_asr_error";
 
 // --- 用于 Window.postMessage 与自定义事件通信的事件名称 ---
 export const EVENT_KISS_INNER = "kiss_translator_inner"; // 插件沙箱/内容脚本内部事件

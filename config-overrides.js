@@ -35,6 +35,7 @@ const extWebpack = (config, env) => {
     popup: paths.appSrc + "/popup.js", // 扩展弹出页面
     options: paths.appSrc + "/options.js", // 扩展设置页面
     background: paths.appSrc + "/background.js", // 扩展后台常驻脚本
+    offscreen: paths.appSrc + "/offscreen.js", // 本地 AI 实时字幕音频捕获
     content: paths.appSrc + "/content.js", // 内容注入核心脚本
     "injector-subtitle": paths.appSrc + "/injector-subtitle.js", // 字幕注入脚本
     "injector-shadowroot": paths.appSrc + "/injector-shadowroot.js", // ShadowRoot 拦截注入脚本
