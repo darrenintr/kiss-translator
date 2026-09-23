@@ -136,12 +136,12 @@ function TestButton({ api }) {
         subtitleSetting
       );
 
-      // 测试译文目标语言跟随界面语言；界面语言为英文（与原文相同）时回退到简体中文
+      // Keep API tests local-only and use Traditional Chinese as the fallback target.
       const fromLang = "en";
-      const UI_LANG_TO_TRANS = { zh: "zh-CN", zh_TW: "zh-TW" };
+      const UI_LANG_TO_TRANS = { zh_TW: "zh-TW" };
       let toLang = UI_LANG_TO_TRANS[uiLang] || uiLang;
       if (!OPT_LANGS_LIST.includes(toLang) || toLang === fromLang) {
-        toLang = "zh-CN";
+        toLang = "zh-TW";
       }
 
       const { trText } = await apiTranslate({

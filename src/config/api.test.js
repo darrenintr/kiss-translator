@@ -1,6 +1,9 @@
 import {
   API_SPE_TYPES,
   DEFAULT_API_LIST,
+  DEFAULT_LOCAL_API_LIST,
+  OPT_ALL_TRANS_TYPES,
+  OPT_LANGS_TO,
   DEFAULT_API_TYPE,
   OPT_LANGS_FROM_SPEC,
   OPT_LANGS_TO_SPEC,
@@ -22,6 +25,7 @@ import {
   OPT_TRANS_GEMINI_2,
   OPT_TRANS_ALIYUNBAILIAN,
   OPT_TRANS_MICROSOFT,
+  OPT_TRANS_TRANSLATEGEMMA,
   OPT_TRANS_SILICONFLOW,
   OPT_TRANS_OPENAI,
   OPT_TRANS_OPENCODEGO,
@@ -33,15 +37,27 @@ import {
   OPT_TRANS_ZAI,
 } from "./api";
 
-test("uses Microsoft as the fallback default API", () => {
-  expect(DEFAULT_API_TYPE).toBe(OPT_TRANS_MICROSOFT);
+test("uses TranslateGemma as the fallback default API", () => {
+  expect(DEFAULT_API_TYPE).toBe(OPT_TRANS_TRANSLATEGEMMA);
 });
 
-test("includes Microsoft in the built-in API list", () => {
+test("retains Microsoft only in the compatibility provider catalog", () => {
   expect(
     DEFAULT_API_LIST.some((api) => api.apiType === OPT_TRANS_MICROSOFT)
   ).toBe(true);
 });
+
+test("exposes only TranslateGemma to the local-only runtime", () => {
+  expect(OPT_ALL_TRANS_TYPES).toEqual([OPT_TRANS_TRANSLATEGEMMA]);
+  expect(DEFAULT_LOCAL_API_LIST).toHaveLength(1);
+  expect(DEFAULT_LOCAL_API_LIST[0].apiType).toBe(OPT_TRANS_TRANSLATEGEMMA);
+});
+
+test("does not expose Simplified Chinese as a translation target", () => {
+  expect(OPT_LANGS_TO.map(([code]) => code)).not.toContain("zh-CN");
+  expect(OPT_LANGS_TO.map(([code]) => code)).toContain("zh-TW");
+});
+
 
 test("configures the official and free Yandex translators", () => {
   const yandex = DEFAULT_API_LIST.find(

@@ -13,6 +13,7 @@ import {
   STOKEY_RULES,
   OPT_SPLIT_PARAGRAPH_ALL,
   OPT_HIGHLIGHT_WORDS_ALL,
+  OPT_TRANS_TRANSLATEGEMMA,
 } from "../config";
 import { loadOrFetchSubRules } from "./subRules";
 import { getRulesWithDefault, saveEdit, getDisabledSubRules } from "./storage";
@@ -390,11 +391,12 @@ export const checkRules = (rules) => {
         injectJs: type(injectJs) === "string" ? injectJs : "",
         injectCss: type(injectCss) === "string" ? injectCss : "",
         apiSlug:
-          type(apiSlug) === "string" && apiSlug.trim() !== ""
-            ? apiSlug.trim()
-            : GLOBAL_KEY,
+          apiSlug === GLOBAL_KEY ? GLOBAL_KEY : OPT_TRANS_TRANSLATEGEMMA,
         fromLang: matchValue([GLOBAL_KEY, ...fromLangs], fromLang),
-        toLang: matchValue([GLOBAL_KEY, ...toLangs], toLang),
+        toLang: matchValue(
+          [GLOBAL_KEY, ...toLangs],
+          toLang === "zh-CN" ? "zh-TW" : toLang
+        ),
         textStyle:
           type(textStyle) === "string" && textStyle.trim() !== ""
             ? textStyle.trim()

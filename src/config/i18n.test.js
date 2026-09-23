@@ -11,6 +11,11 @@ test("covers every supported locale for every registered label", () => {
   expect(missing).toEqual([]);
 });
 
+test("does not expose Simplified Chinese as a UI locale", () => {
+  expect(UI_LANGS.map(([locale]) => locale)).not.toContain("zh");
+  expect(UI_LANGS.map(([locale]) => locale)).toContain("zh_TW");
+});
+
 test("provides distinct popup loading and domain status labels", () => {
   expect(I18N.popup_loading.en).toBe("Loading…");
   expect(I18N.popup_loading.en).not.toBe(I18N.popup_translating.en);

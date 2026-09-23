@@ -2,7 +2,10 @@ import { checkRules, matchRule, saveRule } from "./rules";
 import { getDisabledSubRules, getRulesWithDefault, saveEdit } from "./storage";
 import { loadOrFetchSubRules } from "./subRules";
 import { GLOBLA_RULE } from "../config/rules";
-import { OPT_TRANS_MICROSOFT, OPT_TRANS_TENCENT } from "../config/api";
+import {
+  OPT_TRANS_TRANSLATEGEMMA,
+  OPT_TRANS_TENCENT,
+} from "../config/api";
 
 jest.mock("./storage", () => ({
   getRulesWithDefault: jest.fn(),
@@ -25,22 +28,17 @@ jest.mock("./log", () => ({
   },
 }));
 
-test("uses Microsoft as the default webpage translator", () => {
-  expect(GLOBLA_RULE.apiSlug).toBe(OPT_TRANS_MICROSOFT);
+test("uses TranslateGemma as the default webpage translator", () => {
+  expect(GLOBLA_RULE.apiSlug).toBe(OPT_TRANS_TRANSLATEGEMMA);
 });
 
-test("keeps an explicitly stored Tencent global rule", async () => {
-  getDisabledSubRules.mockResolvedValue([]);
-  getRulesWithDefault.mockResolvedValue([
-    { pattern: "*", apiSlug: OPT_TRANS_TENCENT },
+test("normalizes imported remote-provider rules to TranslateGemma", () => {
+  const [rule] = checkRules([
+    { pattern: "example.com", apiSlug: OPT_TRANS_TENCENT, toLang: "zh-CN" },
   ]);
 
-  const rule = await matchRule("https://example.com", {
-    injectRules: false,
-    subrulesList: [],
-  });
-
-  expect(rule.apiSlug).toBe(OPT_TRANS_TENCENT);
+  expect(rule.apiSlug).toBe(OPT_TRANS_TRANSLATEGEMMA);
+  expect(rule.toLang).toBe("zh-TW");
 });
 
 describe("rules enabled state", () => {

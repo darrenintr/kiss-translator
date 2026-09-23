@@ -81,15 +81,15 @@ export const OPT_TRANS_OPENROUTER = "OpenRouter"; // OpenRouter 多模型聚合 
 export const OPT_TRANS_ORCAROUTER = "OrcaRouter"; // OrcaRouter 多模型聚合 API 翻译
 export const OPT_TRANS_CUSTOMIZE = "Custom"; // 自定义翻译 API
 
-// 内置支持的翻译引擎
-export const OPT_ALL_TRANS_TYPES = [
+// Provider implementations retained as a compatibility catalog. They are not
+// exposed by the local-only build; OPT_ALL_TRANS_TYPES is the runtime/UI allow-list.
+export const OPT_TRANS_CATALOG_TYPES = [
   OPT_TRANS_BUILTINAI,
   OPT_TRANS_GOOGLE,
   OPT_TRANS_GOOGLE_2,
   OPT_TRANS_GOOGLE_CLOUD,
   OPT_TRANS_MICROSOFT,
   OPT_TRANS_AZUREAI,
-  // OPT_TRANS_BAIDU,
   OPT_TRANS_DEEPSEEK,
   OPT_TRANS_OPENCODEGO,
   OPT_TRANS_SILICONFLOW,
@@ -117,6 +117,9 @@ export const OPT_ALL_TRANS_TYPES = [
   OPT_TRANS_ORCAROUTER,
   OPT_TRANS_CUSTOMIZE,
 ];
+
+// Only this allow-list is exposed to users and accepted for new configuration.
+export const OPT_ALL_TRANS_TYPES = [OPT_TRANS_TRANSLATEGEMMA];
 
 export const OPT_LANGDETECTOR_ALL = [
   OPT_TRANS_BUILTINAI,
@@ -921,7 +924,6 @@ export const PLACETAG_FORMATS = ["compact", "attribute"]; // 占位符格式：�
 
 export const OPT_LANGS_TO = [
   ["en", "English - English"],
-  ["zh-CN", "Simplified Chinese - 简体中文"],
   ["zh-TW", "Traditional Chinese - 繁體中文"],
   ["ar", "Arabic - العربية"],
   ["bg", "Bulgarian - Български"],
@@ -959,9 +961,16 @@ export const OPT_LANGS_TO = [
   ["uk", "Ukrainian - Українська"],
   ["vi", "Vietnamese - Tiếng Việt"],
 ];
-export const OPT_LANGS_LIST = OPT_LANGS_TO.map(([lang]) => lang);
+// zh-CN remains an internal source-language alias so local detection can
+// correctly distinguish Simplified Chinese input from the zh-TW target.
+// It is intentionally not exposed as a translation target.
+export const OPT_LANGS_LIST = [
+  "zh-CN",
+  ...OPT_LANGS_TO.map(([lang]) => lang),
+];
 export const OPT_LANGS_FROM = [
   ["auto", "AutoDetect - AutoDetect"],
+  ["zh-CN", "Chinese - 中文"],
   ...OPT_LANGS_TO,
 ];
 export const OPT_LANGS_MAP = new Map(OPT_LANGS_TO);
@@ -1757,7 +1766,7 @@ const defaultApiOpts = {
 };
 
 // 内置翻译接口列表（带参数）
-export const DEFAULT_API_LIST = OPT_ALL_TRANS_TYPES.map((apiType) =>
+export const DEFAULT_API_LIST = OPT_TRANS_CATALOG_TYPES.map((apiType) =>
   normalizeApiThinkingSetting({
     ...defaultApiOpts[apiType],
     apiSlug: apiType,
@@ -1765,6 +1774,10 @@ export const DEFAULT_API_LIST = OPT_ALL_TRANS_TYPES.map((apiType) =>
     apiType,
   })
 );
+
+export const DEFAULT_LOCAL_API_LIST = OPT_ALL_TRANS_TYPES.map((apiType) =>
+  DEFAULT_API_LIST.find((api) => api.apiType === apiType)
+).filter(Boolean);
 
 /**
  * 为单个翻译接口补齐模型列表 URL。
@@ -1823,7 +1836,7 @@ export function normalizeApiModelListUrls(transApis = []) {
   return hasChanges ? nextApis : transApis;
 }
 
-export const DEFAULT_API_TYPE = OPT_TRANS_MICROSOFT;
+export const DEFAULT_API_TYPE = OPT_TRANS_TRANSLATEGEMMA;
 export const DEFAULT_API_SETTING = DEFAULT_API_LIST.find(
   (a) => a.apiType === DEFAULT_API_TYPE
 );

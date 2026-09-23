@@ -5,7 +5,10 @@ import {
   DEFAULT_SUBTITLE_SETTING,
   DEFAULT_TRANBOX_SETTING,
 } from "./setting";
-import { DEFAULT_API_LIST, OPT_TRANS_MICROSOFT } from "./api";
+import {
+  DEFAULT_LOCAL_API_LIST,
+  OPT_TRANS_TRANSLATEGEMMA,
+} from "./api";
 import { GLOBAL_KEY } from "./rules";
 
 describe("translation box defaults", () => {
@@ -21,10 +24,14 @@ describe("translation box defaults", () => {
     expect(DEFAULT_SETTING.autoTranslateClipboard).toBe(false);
   });
 
-  test("uses Microsoft for every default translation entry point", () => {
-    expect(DEFAULT_INPUT_RULE.apiSlug).toBe(OPT_TRANS_MICROSOFT);
-    expect(DEFAULT_TRANBOX_SETTING.apiSlugs).toEqual([OPT_TRANS_MICROSOFT]);
-    expect(DEFAULT_SUBTITLE_SETTING.apiSlug).toBe(OPT_TRANS_MICROSOFT);
+  test("uses TranslateGemma for every default translation entry point", () => {
+    expect(DEFAULT_INPUT_RULE.apiSlug).toBe(OPT_TRANS_TRANSLATEGEMMA);
+    expect(DEFAULT_TRANBOX_SETTING.apiSlugs).toEqual([
+      OPT_TRANS_TRANSLATEGEMMA,
+    ]);
+    expect(DEFAULT_SUBTITLE_SETTING.apiSlug).toBe(OPT_TRANS_TRANSLATEGEMMA);
+    expect(DEFAULT_TRANBOX_SETTING.toLang).toBe("zh-TW");
+    expect(DEFAULT_SUBTITLE_SETTING.toLang).toBe("zh-TW");
   });
 
   test("does not ignore any language by default", () => {
@@ -40,8 +47,10 @@ describe("translation box defaults", () => {
     expect(DEFAULT_MOUSE_HOVER_SETTING.apiSlug).toBe(GLOBAL_KEY);
   });
 
-  test("includes every current API without legacy deletion markers", () => {
-    expect(DEFAULT_SETTING.transApis).toBe(DEFAULT_API_LIST);
+  test("exposes only the local provider in fresh settings", () => {
+    expect(DEFAULT_SETTING.transApis).toBe(DEFAULT_LOCAL_API_LIST);
+    expect(DEFAULT_SETTING.transApis).toHaveLength(1);
+    expect(DEFAULT_SETTING.transApis[0].apiType).toBe(OPT_TRANS_TRANSLATEGEMMA);
     expect(DEFAULT_SETTING).not.toHaveProperty("deletedTransApiSlugs");
   });
 });
